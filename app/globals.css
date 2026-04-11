@@ -13,7 +13,6 @@ body {
   padding: 0;
 }
 
-/* On force le fond sombre même si le navigateur est en mode clair */
 html {
   background-color: #0b0f1a;
 }
