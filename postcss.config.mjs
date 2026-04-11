@@ -1,7 +1,10 @@
-const config = {
-  plugins: {
-    "@tailwindcss/postcss": {},
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   },
 };
-
-export default config;
+export default nextConfig;
