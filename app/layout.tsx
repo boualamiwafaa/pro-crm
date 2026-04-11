@@ -12,7 +12,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// MODIFICATION ICI : Le nom qui apparaîtra dans l'onglet du navigateur
 export const metadata: Metadata = {
   title: "ProCrm",
   description: "Système de gestion d'appels et supervision d'élite",
@@ -24,11 +23,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="fr" // Changé en français
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-[#0b0f1a]">
+    <html lang="fr" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="antialiased bg-[#0b0f1a] text-white">
         {children}
       </body>
     </html>
