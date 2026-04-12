@@ -1,6 +1,17 @@
 "use client";
 import React, { useState } from "react";
 
+// Définition d'un type précis pour éviter l'erreur "any" sur Vercel
+interface Lead {
+  id: number;
+  name: string;
+  phone: string;
+  email: string;
+  dob: string;
+  address: string;
+  note: string;
+}
+
 export default function ProCrmApp() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [view, setView] = useState("AGENT");
@@ -9,14 +20,14 @@ export default function ProCrmApp() {
   const [manualNumber, setManualNumber] = useState("");
   const [currentNote, setCurrentNote] = useState("");
   
-  // Données clients avec les nouveaux champs intégrés
-  const [leads, setLeads] = useState<any[]>([
+  // Données clients avec le type Lead
+  const [leads, setLeads] = useState<Lead[]>([
     { id: 1, name: "MOHAMED ELITE", phone: "0600000000", email: "m.elite@gmail.com", dob: "1988-10-15", address: "12 Rue de la Paix, Paris", note: "" },
     { id: 2, name: "JEAN DURAND", phone: "0712345678", email: "j.durand@outlook.fr", dob: "1995-02-20", address: "54 Avenue des Champs, Lyon", note: "" }
   ]);
-  const [activeLead, setActiveLead] = useState<any>(leads[0]);
+  
+  const [activeLead, setActiveLead] = useState<Lead>(leads[0]);
 
-  // Fonction pour enregistrer la note dans le client actif
   const saveNote = () => {
     setLeads(leads.map(l => l.id === activeLead.id ? { ...l, note: currentNote } : l));
     alert("Fiche de " + activeLead.name + " mise à jour !");
@@ -31,7 +42,7 @@ export default function ProCrmApp() {
   return (
     <main className="h-screen bg-[#0b0f1a] text-white flex overflow-hidden font-sans">
       
-      {/* BARRE LATÉRALE - LISTE DES CLIENTS */}
+      {/* BARRE LATÉRALE */}
       <aside className="w-80 bg-[#111827] border-r border-white/5 flex flex-col shadow-2xl">
         <div className="p-8 border-b border-white/5 bg-black/20">
           <h1 className="text-3xl font-black italic tracking-tighter uppercase">ProCrm<span className="text-blue-500">.</span></h1>
@@ -66,7 +77,7 @@ export default function ProCrmApp() {
           {view === "AGENT" ? (
             <div className="max-w-7xl mx-auto grid grid-cols-12 gap-10">
               
-              {/* FICHE CLIENT GÉANTE */}
+              {/* FICHE CLIENT */}
               <div className="col-span-8 space-y-8">
                 <div className="bg-[#111827] p-12 rounded-[4rem] border border-white/5 shadow-3xl">
                   <div className="flex justify-between items-start mb-12">
@@ -79,20 +90,20 @@ export default function ProCrmApp() {
                   <div className="grid grid-cols-2 gap-8">
                     <div className="space-y-3">
                       <label className="text-xs font-black text-blue-500 uppercase ml-4">Email</label>
-                      <input type="text" defaultValue={activeLead.email} className="w-full bg-black/40 border-2 border-white/5 p-6 rounded-3xl text-xl font-bold outline-none focus:border-blue-500" />
+                      <input type="text" key={activeLead.id + "-email"} defaultValue={activeLead.email} className="w-full bg-black/40 border-2 border-white/5 p-6 rounded-3xl text-xl font-bold outline-none focus:border-blue-500" />
                     </div>
                     <div className="space-y-3">
                       <label className="text-xs font-black text-blue-500 uppercase ml-4">Date de Naissance</label>
-                      <input type="date" defaultValue={activeLead.dob} className="w-full bg-black/40 border-2 border-white/5 p-6 rounded-3xl text-xl font-bold outline-none focus:border-blue-500" />
+                      <input type="date" key={activeLead.id + "-dob"} defaultValue={activeLead.dob} className="w-full bg-black/40 border-2 border-white/5 p-6 rounded-3xl text-xl font-bold outline-none focus:border-blue-500" />
                     </div>
                     <div className="col-span-2 space-y-3">
                       <label className="text-xs font-black text-blue-500 uppercase ml-4">Adresse Postale</label>
-                      <input type="text" defaultValue={activeLead.address} className="w-full bg-black/40 border-2 border-white/5 p-6 rounded-3xl text-xl font-bold outline-none focus:border-blue-500" />
+                      <input type="text" key={activeLead.id + "-addr"} defaultValue={activeLead.address} className="w-full bg-black/40 border-2 border-white/5 p-6 rounded-3xl text-xl font-bold outline-none focus:border-blue-500" />
                     </div>
                   </div>
                 </div>
 
-                {/* ZONE DE NOTES AVEC BOUTON ENREGISTRER */}
+                {/* ZONE DE NOTES */}
                 <div className="bg-[#111827] p-10 rounded-[3rem] border border-white/5">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest italic">Observations de l'appel</h3>
@@ -126,7 +137,7 @@ export default function ProCrmApp() {
         </div>
       </div>
 
-      {/* MODAL CLAVIER NUMÉRIQUE */}
+      {/* MODAL CLAVIER */}
       {showDialer && (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl flex items-center justify-center z-[300]">
           <div className="bg-[#111827] p-12 rounded-[4rem] border border-white/10 w-full max-w-md shadow-3xl">
