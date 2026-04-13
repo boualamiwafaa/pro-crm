@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css"; // Réactivé : C'est ce qui apporte tes couleurs et Tailwind
+import "./globals.css"; 
 import React from "react";
 
 const geistSans = Geist({
