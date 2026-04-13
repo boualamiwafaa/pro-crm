@@ -46,7 +46,7 @@ export default function CRMPage() {
           </div>
           {role === 'superviseur' && (
             <div className="bg-purple-50 text-purple-700 px-4 py-2 rounded-full border border-purple-200 text-sm italic">
-              "Wafaa, pense à bien valider les adresses mails"
+              &quot;Wafaa, pense à bien valider les adresses mails&quot;
             </div>
           )}
         </header>
@@ -82,7 +82,7 @@ export default function CRMPage() {
               </div>
               <div className="md:col-span-2">
                 <label className="block">
-                  <span className="text-slate-500 text-sm">Observations de l'appel</span>
+                  <span className="text-slate-500 text-sm">Observations de l&apos;appel</span>
                   <textarea rows={3} className="mt-1 block w-full border-slate-200 rounded-md bg-slate-50 p-2 border" placeholder="Saisir les observations ici..."></textarea>
                 </label>
               </div>
