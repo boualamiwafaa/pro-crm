@@ -1,9 +1,11 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  content: [
+content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    ".//**/*.{js,ts,jsx,tsx,mdx}", // Ajoute cette ligne pour scanner TOUT le projet
+  ],
   ],
   theme: {
     extend: {
