@@ -100,7 +100,7 @@ export default function CRMPage() {
                 <button className="p-2 text-sm rounded bg-red-600 text-white hover:bg-red-700">REFUS</button>
               </div>
               
-              <button className="w-full mt-6 bg-slate-900 text-white py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-lg">
+              <button  className="w-full mt-6 bg-slate-900 text-white py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-lg">
                 <Save size={20} /> ENREGISTRER LA FICHE
               </button>
             </div>
@@ -109,4 +109,4 @@ export default function CRMPage() {
       </main>
     </div>
   );
-}
+} 
