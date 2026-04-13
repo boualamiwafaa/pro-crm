@@ -1,6 +1,19 @@
 "use client";
 import React, { useState } from 'react';
-import { User, ShieldCheck, Phone, MessageSquare, Save, Mail, Calendar, MapPin, UserCircle, CheckCircle } from 'lucide-react';
+import Link from 'next/link'; // Importation pour la navigation
+import { 
+  User, 
+  ShieldCheck, 
+  Phone, 
+  MessageSquare, 
+  Save, 
+  Mail, 
+  Calendar as CalendarIcon, 
+  MapPin, 
+  UserCircle, 
+  LayoutDashboard,
+  LogOut
+} from 'lucide-react';
 
 export default function CRMPage() {
   const [role, setRole] = useState<'agent' | 'superviseur'>('agent');
@@ -14,9 +27,8 @@ export default function CRMPage() {
   });
 
   const handleSave = () => {
-    // Simulation d'enregistrement
     alert(`✅ Fiche de ${formData.nom} enregistrée !\nStatut final : ${status}`);
-    console.log("Données prêtes pour Excel/Base de données :", { ...formData, status });
+    console.log("Données prêtes :", { ...formData, status });
   };
 
   const updateStatus = (newStatus: string) => {
@@ -25,12 +37,15 @@ export default function CRMPage() {
 
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
+      
       {/* Sidebar Latérale */}
       <aside className="w-64 bg-slate-900 text-white p-6 hidden md:flex flex-col">
         <h1 className="text-2xl font-bold mb-8 flex items-center gap-2">
           <ShieldCheck className="text-blue-400" /> ProCrm.
         </h1>
+        
         <nav className="space-y-4 flex-1">
+          {/* Sélecteurs de rôle (Interaction locale) */}
           <div 
             className={`p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-all ${role === 'agent' ? 'bg-blue-600 shadow-lg' : 'hover:bg-slate-800'}`} 
             onClick={() => setRole('agent')}
@@ -43,15 +58,29 @@ export default function CRMPage() {
           >
             <ShieldCheck size={20} /> Superviseur
           </div>
+
+          <hr className="border-slate-700 my-4" />
+
+          {/* Nouveaux Liens vers les pages créées */}
+          <Link href="/calendar" className="p-3 rounded-lg flex items-center gap-3 hover:bg-slate-800 transition-colors">
+            <CalendarIcon size={20} /> Calendrier
+          </Link>
+          
+          <Link href="/admin" className="p-3 rounded-lg flex items-center gap-3 hover:bg-slate-800 transition-colors">
+            <LayoutDashboard size={20} /> Stats Admin
+          </Link>
         </nav>
         
+        {/* Section Bas de Sidebar */}
         <div className="pt-10 border-t border-slate-700 space-y-3">
           <button className="w-full bg-slate-800 p-3 rounded flex items-center gap-2 hover:bg-slate-700 transition-colors">
             <Phone size={18} /> Appel Manuel
           </button>
-          <button className="w-full bg-slate-800 p-3 rounded flex items-center gap-2 hover:bg-slate-700 transition-colors">
-            <MessageSquare size={18} /> Chat Équipe
-          </button>
+          
+          {/* Lien vers la page de Connexion (Déconnexion) */}
+          <Link href="/login" className="w-full bg-red-900/20 text-red-400 p-3 rounded flex items-center gap-2 hover:bg-red-900/40 transition-colors">
+            <LogOut size={18} /> Déconnexion
+          </Link>
         </div>
       </aside>
 
@@ -112,7 +141,7 @@ export default function CRMPage() {
               </div>
               <div className="space-y-4">
                 <label className="block">
-                  <span className="text-slate-500 text-sm flex items-center gap-2 mb-1"><Calendar size={14}/> Date de Naissance</span>
+                  <span className="text-slate-500 text-sm flex items-center gap-2 mb-1"><CalendarIcon size={14}/> Date de Naissance</span>
                   <input 
                     type="date" 
                     value={formData.dateNaiss}
