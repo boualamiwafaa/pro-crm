@@ -7,6 +7,9 @@ export default function CRMPage() {
   
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
+      {/* 🚩 BARRE DE DIAGNOSTIC - À SUPPRIMER APRÈS LE TEST 🚩 */}
+      <div className="fixed top-0 left-0 w-full h-2 bg-red-600 z-[9999]"></div>
+
       {/* Sidebar Latérale */}
       <aside className="w-64 bg-slate-900 text-white p-6 hidden md:block">
         <h1 className="text-2xl font-bold mb-8 flex items-center gap-2">
@@ -109,4 +112,4 @@ export default function CRMPage() {
       </main>
     </div>
   );
-} 
+}
