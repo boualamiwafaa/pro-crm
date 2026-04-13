@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-// On commente temporairement la ligne ci-dessous car elle bloque le build Vercel
-// import "./globals.css"; 
+import "./globals.css"; // Réactivé : C'est ce qui apporte tes couleurs et Tailwind
 import React from "react";
 
 const geistSans = Geist({
@@ -25,18 +24,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" style={{ backgroundColor: '#0b0f1a', color: 'white' }}>
-      <body 
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        style={{ 
-          backgroundColor: '#0b0f1a', 
-          color: 'white',
-          margin: 0,
-          padding: 0,
-          minHeight: '100vh',
-          fontFamily: 'sans-serif'
-        }}
-      >
+    <html lang="fr">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
       </body>
     </html>
