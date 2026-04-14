@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --background: #020617; /* Bleu très sombre */
+  --background: #020617;
   --foreground: #f8fafc;
 }
 
@@ -11,9 +11,4 @@ body {
   background: var(--background);
   color: var(--foreground);
   min-height: 100vh;
-}
-
-/* Couleurs pour tes boutons de qualification */
-.btn-qualif {
-  @apply px-4 py-2 rounded-lg font-medium transition-all;
 }
