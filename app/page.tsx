@@ -17,7 +17,7 @@ export default function AgentPage() {
   const handleSendChat = () => {
     if (chatMsg.trim()) {
       setMessages([...messages, { role: 'Moi', text: chatMsg }]);
-      setChatMsg(""); // Vide le champ après envoi
+      setChatMsg(""); 
     }
   };
 
@@ -50,26 +50,43 @@ export default function AgentPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '20px', width: '100%', maxWidth: '1100px' }}>
-        {/* BOUTONS ACTIONS */}
+        
+        {/* BOUTONS ACTIONS (COLONNE GAUCHE) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <button onClick={() => setShowCalendar(true)} style={{ backgroundColor: '#2563eb', padding: '20px', borderRadius: '15px', border: 'none', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>📅 RAPPEL / RDV</button>
           <button onClick={() => setShowChat(true)} style={{ backgroundColor: '#059669', padding: '20px', borderRadius: '15px', border: 'none', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>💬 CHAT ÉQUIPE</button>
           <button onClick={() => setShowKeypad(!showKeypad)} style={{ backgroundColor: '#f59e0b', padding: '20px', borderRadius: '15px', border: 'none', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>⌨️ CLAVIER MANUEL</button>
 
+          {/* CLAVIER MANUEL AVEC BOUTON APPEL */}
           {showKeypad && (
-            <div style={{ backgroundColor: '#0f172a', padding: '15px', borderRadius: '15px', border: '2px solid #f59e0b' }}>
-              <div style={{ fontSize: '18px', marginBottom: '10px', color: '#f59e0b', fontWeight: 'bold', backgroundColor: '#000', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>{phoneNumber || "Tapez..."}</div>
+            <div style={{ backgroundColor: '#0f172a', padding: '15px', borderRadius: '15px', border: '2px solid #f59e0b', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+              <div style={{ fontSize: '20px', marginBottom: '10px', color: '#f59e0b', fontWeight: 'bold', backgroundColor: '#000', padding: '12px', borderRadius: '10px', textAlign: 'center', border: '1px solid #444', letterSpacing: '2px' }}>
+                {phoneNumber || "Tapez..." }
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                {[1,2,3,4,5,6,7,8,9,"*",0,"#"].map(n => (
-                  <button key={n} onClick={() => pressKey(n)} style={{ padding: '12px', backgroundColor: '#1e293b', border: 'none', color: 'white', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>{n}</button>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, "*", 0, "#"].map(n => (
+                  <button key={n} onClick={() => pressKey(n)} style={{ padding: '15px', backgroundColor: '#1e293b', border: 'none', color: 'white', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '18px' }}>
+                    {n}
+                  </button>
                 ))}
               </div>
-              <button onClick={() => setPhoneNumber("")} style={{ width: '100%', marginTop: '10px', color: '#94a3b8', fontSize: '10px', background: 'none', border: 'none', cursor: 'pointer' }}>EFFACER</button>
+
+              <button 
+                onClick={() => phoneNumber ? alert('Appel en cours vers le ' + phoneNumber) : alert('Entrez un numéro')}
+                style={{ width: '100%', marginTop: '15px', backgroundColor: '#10b981', color: 'black', padding: '15px', borderRadius: '12px', border: 'none', fontWeight: '900', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+              >
+                <Phone size={20} fill="black" /> LANCER L'APPEL
+              </button>
+
+              <button onClick={() => setPhoneNumber("")} style={{ width: '100%', marginTop: '10px', color: '#ef4444', fontSize: '11px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+                EFFACER TOUT
+              </button>
             </div>
           )}
         </div>
 
-        {/* FICHE CLIENT */}
+        {/* FICHE CLIENT (COLONNE DROITE) */}
         <div style={{ backgroundColor: '#0f172a', padding: '30px', borderRadius: '25px', border: '1px solid #334155' }}>
           <h2 style={{ color: '#60a5fa', marginBottom: '20px', fontWeight: 'black' }}>CLIENT : JEAN DURAND</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
@@ -103,7 +120,7 @@ export default function AgentPage() {
         </div>
       </div>
 
-      {/* CALENDRIER MODAL (Actif sur bouton Rappel) */}
+      {/* MODAL CALENDRIER */}
       {showCalendar && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: '#0f172a', padding: '30px', borderRadius: '20px', border: '2px solid #3b82f6', width: '350px', textAlign: 'center' }}>
@@ -118,7 +135,7 @@ export default function AgentPage() {
         </div>
       )}
 
-      {/* CHAT MODAL (Actif sur bouton Envoyer) */}
+      {/* MODAL CHAT */}
       {showChat && (
         <div style={{ position: 'fixed', bottom: '20px', right: '20px', width: '320px', backgroundColor: '#0f172a', border: '2px solid #10b981', borderRadius: '15px', zIndex: 100 }}>
           <div style={{ backgroundColor: '#10b981', padding: '12px', display: 'flex', justifyContent: 'space-between', color: 'black', fontWeight: 'bold' }}>
