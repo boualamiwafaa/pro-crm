@@ -1,19 +1,14 @@
-import './globals.css';
+import './globals.css'; // <--- VERIFIE BIEN CETTE LIGNE
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: "ProCrm",
-  description: "Solution CRM",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
-      <body className="antialiased bg-[#020617] text-white">
+      <body className="bg-[#020617] text-white">
         {children}
       </body>
     </html>
