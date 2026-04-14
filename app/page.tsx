@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from 'react';
-import Link from 'next/link'; // Importation pour la navigation
+import Link from 'next/link';
+import * as XLSX from 'xlsx'; // Importation pour la lecture Excel
 import { 
   User, 
   ShieldCheck, 
@@ -12,7 +13,8 @@ import {
   MapPin, 
   UserCircle, 
   LayoutDashboard,
-  LogOut
+  LogOut,
+  FileSpreadsheet
 } from 'lucide-react';
 
 export default function CRMPage() {
@@ -26,9 +28,37 @@ export default function CRMPage() {
     notes: ""
   });
 
+  // Fonction pour lire le fichier Excel
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const bstr = evt.target?.result;
+      const wb = XLSX.read(bstr, { type: 'binary' });
+      const wsname = wb.SheetNames[0];
+      const ws = wb.Sheets[wsname];
+      const data = XLSX.utils.sheet_to_json(ws) as any[];
+
+      if (data.length > 0) {
+        const firstRow = data[0];
+        // On remplit les cases automatiquement avec les colonnes de ton Excel
+        setFormData({
+          ...formData,
+          nom: (firstRow.Nom || firstRow.nom || "Client Importé").toUpperCase(),
+          email: firstRow.Email || firstRow.email || "",
+          adresse: firstRow.Adresse || firstRow.adresse || "",
+          dateNaiss: firstRow.Date || firstRow.date || ""
+        });
+        alert("📊 Fiche chargée depuis l'Excel !");
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const handleSave = () => {
     alert(`✅ Fiche de ${formData.nom} enregistrée !\nStatut final : ${status}`);
-    console.log("Données prêtes :", { ...formData, status });
   };
 
   const updateStatus = (newStatus: string) => {
@@ -45,7 +75,6 @@ export default function CRMPage() {
         </h1>
         
         <nav className="space-y-4 flex-1">
-          {/* Sélecteurs de rôle (Interaction locale) */}
           <div 
             className={`p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-all ${role === 'agent' ? 'bg-blue-600 shadow-lg' : 'hover:bg-slate-800'}`} 
             onClick={() => setRole('agent')}
@@ -61,23 +90,20 @@ export default function CRMPage() {
 
           <hr className="border-slate-700 my-4" />
 
-          {/* Nouveaux Liens vers les pages créées */}
-          <Link href="/calendar" className="p-3 rounded-lg flex items-center gap-3 hover:bg-slate-800 transition-colors">
+          <Link href="/calendar" className="p-3 rounded-lg flex items-center gap-3 hover:bg-slate-800 transition-colors text-slate-300">
             <CalendarIcon size={20} /> Calendrier
           </Link>
           
-          <Link href="/admin" className="p-3 rounded-lg flex items-center gap-3 hover:bg-slate-800 transition-colors">
+          <Link href="/admin" className="p-3 rounded-lg flex items-center gap-3 hover:bg-slate-800 transition-colors text-slate-300">
             <LayoutDashboard size={20} /> Stats Admin
           </Link>
         </nav>
         
-        {/* Section Bas de Sidebar */}
         <div className="pt-10 border-t border-slate-700 space-y-3">
           <button className="w-full bg-slate-800 p-3 rounded flex items-center gap-2 hover:bg-slate-700 transition-colors">
             <Phone size={18} /> Appel Manuel
           </button>
           
-          {/* Lien vers la page de Connexion (Déconnexion) */}
           <Link href="/login" className="w-full bg-red-900/20 text-red-400 p-3 rounded flex items-center gap-2 hover:bg-red-900/40 transition-colors">
             <LogOut size={18} /> Déconnexion
           </Link>
@@ -85,7 +111,7 @@ export default function CRMPage() {
       </aside>
 
       {/* Contenu Principal */}
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-8 overflow-y-auto">
         <header className="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
           <div className="flex items-center gap-4">
             <div className={`p-2 rounded-full text-white font-bold ${role === 'agent' ? 'bg-blue-600' : 'bg-purple-600'}`}>
@@ -121,7 +147,7 @@ export default function CRMPage() {
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <label className="block">
-                  <span className="text-slate-500 text-sm flex items-center gap-2 mb-1"><User size={14}/> Nom complet</span>
+                  <span className="text-slate-500 text-sm flex items-center gap-2 mb-1 text-slate-400"><User size={14}/> Nom complet</span>
                   <input 
                     type="text" 
                     value={formData.nom} 
@@ -130,7 +156,7 @@ export default function CRMPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-slate-500 text-sm flex items-center gap-2 mb-1"><Mail size={14}/> Email</span>
+                  <span className="text-slate-500 text-sm flex items-center gap-2 mb-1 text-slate-400"><Mail size={14}/> Email</span>
                   <input 
                     type="email" 
                     value={formData.email}
@@ -141,7 +167,7 @@ export default function CRMPage() {
               </div>
               <div className="space-y-4">
                 <label className="block">
-                  <span className="text-slate-500 text-sm flex items-center gap-2 mb-1"><CalendarIcon size={14}/> Date de Naissance</span>
+                  <span className="text-slate-500 text-sm flex items-center gap-2 mb-1 text-slate-400"><CalendarIcon size={14}/> Date de Naissance</span>
                   <input 
                     type="date" 
                     value={formData.dateNaiss}
@@ -150,7 +176,7 @@ export default function CRMPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-slate-500 text-sm flex items-center gap-2 mb-1"><MapPin size={14}/> Adresse Postale</span>
+                  <span className="text-slate-500 text-sm flex items-center gap-2 mb-1 text-slate-400"><MapPin size={14}/> Adresse Postale</span>
                   <input 
                     type="text" 
                     value={formData.adresse}
@@ -167,7 +193,7 @@ export default function CRMPage() {
                     value={formData.notes}
                     onChange={(e) => setFormData({...formData, notes: e.target.value})}
                     className="mt-1 block w-full border-slate-200 rounded-lg bg-slate-50 p-2.5 border focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
-                    placeholder="Détails de l'échange..."
+                    placeholder="Saisir les observations ici..."
                   ></textarea>
                 </label>
               </div>
@@ -177,7 +203,7 @@ export default function CRMPage() {
           {/* Qualifications & Actions */}
           <section className="space-y-6">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-              <h3 className="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-slate-700">QUALIFICATIONS</h3>
+              <h3 className="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-slate-700 uppercase tracking-wider">Qualifications</h3>
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={() => updateStatus('VENTE ✅')} className="p-3 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 font-bold shadow-md transition-all active:scale-95">VENTE ✅</button>
                 <button onClick={() => updateStatus('RAPPEL 📅')} className="p-3 text-sm rounded-lg bg-blue-500 text-white hover:bg-blue-600 font-bold shadow-md transition-all active:scale-95">RAPPEL 📅</button>
@@ -187,12 +213,30 @@ export default function CRMPage() {
                 <button onClick={() => updateStatus('REFUS')} className="p-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 font-bold transition-all active:scale-95">REFUS</button>
               </div>
               
-              <button 
-                onClick={handleSave}
-                className="w-full mt-8 bg-slate-900 text-white py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-600 transition-all shadow-xl font-bold group"
-              >
-                <Save size={20} className="group-hover:animate-bounce" /> ENREGISTRER LA FICHE
-              </button>
+              <div className="mt-8 space-y-3">
+                {/* Bouton Import Excel */}
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls" 
+                  onChange={handleFileUpload} 
+                  className="hidden" 
+                  id="excel-upload" 
+                />
+                <label 
+                  htmlFor="excel-upload" 
+                  className="w-full bg-emerald-600 text-white py-3 rounded-xl flex items-center justify-center gap-2 font-bold cursor-pointer hover:bg-emerald-700 transition-all shadow-md active:scale-95 border-b-4 border-emerald-800"
+                >
+                  <FileSpreadsheet size={20} /> IMPORTER LISTE EXCEL
+                </label>
+
+                {/* Bouton Enregistrer */}
+                <button 
+                  onClick={handleSave}
+                  className="w-full bg-slate-900 text-white py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-600 transition-all shadow-xl font-bold group border-b-4 border-slate-950"
+                >
+                  <Save size={20} className="group-hover:animate-bounce" /> ENREGISTRER LA FICHE
+                </button>
+              </div>
             </div>
 
             <div className="bg-blue-600 p-6 rounded-2xl text-white shadow-lg relative overflow-hidden">
