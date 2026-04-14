@@ -1,21 +1,16 @@
-import type { Metadata } from 'next'
 import './globals.css'
-export const metadata: Metadata = {
+
+export const metadata = {
   title: "ProCrm",
   description: "Solution CRM",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
-      <body className="antialiased">
+      <body className="antialiased bg-[#020617] text-white">
         {children}
       </body>
     </html>
   );
 }
-// Version forcee 2
