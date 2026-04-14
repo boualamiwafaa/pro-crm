@@ -1,13 +1,22 @@
 import './globals.css'
+import type { Metadata } from 'next'
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const metadata: Metadata = {
+  title: "ProCrm - Solution CRM Professionnelle",
+  description: "Plateforme de gestion de la relation client par Wafaa Agent",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="fr">
-      <body style={{ backgroundColor: '#020617', color: 'white', margin: 0, padding: '20px', fontFamily: 'sans-serif' }}>
-        <div style={{ border: '2px solid yellow', padding: '10px', marginBottom: '20px' }}>
-          ✅ LE LAYOUT EST ENFIN CHARGÉ
+    <html lang="fr" className="h-full">
+      <body className="antialiased h-full bg-[#020617] text-white">
+        <div className="p-5 font-sans">
+          {children}
         </div>
-        {children}
       </body>
     </html>
   );
