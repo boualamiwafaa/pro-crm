@@ -1,4 +1,4 @@
-import './globals.css'; // <--- VERIFIE BIEN CETTE LIGNE
+import './globals.css';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
