@@ -1,98 +1,86 @@
 "use client";
 import React, { useState } from 'react';
-import Link from 'next/link';
-import * as XLSX from 'xlsx';
 import { 
   User, ShieldCheck, Phone, MessageSquare, Save, Mail, 
   Calendar as CalendarIcon, MapPin, UserCircle, LayoutDashboard, 
-  LogOut, FileSpreadsheet 
+  LogOut, FileSpreadsheet, Ban, Clock, CheckCircle
 } from 'lucide-react';
 
 export default function CRMPage() {
   const [role, setRole] = useState<'agent' | 'superviseur'>('agent');
   const [status, setStatus] = useState('APPEL EN COURS');
-  const [formData, setFormData] = useState({
-    nom: "JEAN DURAND",
-    email: "m.elite@gmail.com",
-    dateNaiss: "1988-10-15",
-    adresse: "12 Rue de la Paix, Paris",
-    notes: ""
-  });
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: 'binary' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json(ws) as any[];
-      if (data.length > 0) {
-        const f = data[0];
-        setFormData({
-          ...formData,
-          nom: (f.Nom || f.nom || "Client Importé").toUpperCase(),
-          email: f.Email || f.email || "",
-          adresse: f.Adresse || f.adresse || "",
-          dateNaiss: f.Date || f.date || ""
-        });
-        alert("📊 Données importées !");
-      }
-    };
-    reader.readAsBinaryString(file);
-  };
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
-      <aside className="w-64 bg-slate-900 text-white p-6 hidden md:flex flex-col">
-        <h1 className="text-2xl font-bold mb-8 flex items-center gap-2"><ShieldCheck className="text-blue-400" /> ProCrm.</h1>
+    <div className="flex min-h-screen bg-slate-900 text-white font-sans">
+      {/* Sidebar - Design Sombre */}
+      <aside className="w-64 bg-slate-950 p-6 flex flex-col border-r border-slate-800">
+        <h1 className="text-2xl font-bold mb-8 flex items-center gap-2 text-blue-400"><ShieldCheck /> ProCrm.</h1>
         <nav className="space-y-4 flex-1">
-          <div onClick={() => setRole('agent')} className={`p-3 rounded-lg flex items-center gap-3 cursor-pointer ${role === 'agent' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}><User size={20} /> Espace Agent</div>
-          <div onClick={() => setRole('superviseur')} className={`p-3 rounded-lg flex items-center gap-3 cursor-pointer ${role === 'superviseur' ? 'bg-purple-600' : 'hover:bg-slate-800'}`}><ShieldCheck size={20} /> Superviseur</div>
-          <hr className="border-slate-700 my-4" />
-          <Link href="/calendar" className="p-3 rounded-lg flex items-center gap-3 hover:bg-slate-800"><CalendarIcon size={20} /> Calendrier</Link>
-          <Link href="/admin" className="p-3 rounded-lg flex items-center gap-3 hover:bg-slate-800"><LayoutDashboard size={20} /> Stats Admin</Link>
+          <button onClick={() => setRole('agent')} className={`w-full p-3 rounded-lg flex items-center gap-3 ${role === 'agent' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}><User size={20} /> Espace Agent</button>
+          <button onClick={() => setRole('superviseur')} className={`w-full p-3 rounded-lg flex items-center gap-3 ${role === 'superviseur' ? 'bg-purple-600' : 'hover:bg-slate-800'}`}><ShieldCheck size={20} /> Superviseur</button>
+          <hr className="border-slate-800 my-4" />
+          <div className="p-3 rounded-lg flex items-center gap-3 text-slate-400 hover:bg-slate-800 cursor-pointer"><CalendarIcon size={20} /> Calendrier</div>
+          <div className="p-3 rounded-lg flex items-center gap-3 text-slate-400 hover:bg-slate-800 cursor-pointer"><MessageSquare size={20} /> Chat Équipe</div>
         </nav>
-        <div className="pt-10 border-t border-slate-700 space-y-3">
-          <button className="w-full bg-slate-800 p-3 rounded flex items-center gap-2 hover:bg-slate-700"><Phone size={18} /> Appel Manuel</button>
-          <Link href="/login" className="w-full bg-red-900/20 text-red-400 p-3 rounded flex items-center gap-2 hover:bg-red-900/40"><LogOut size={18} /> Déconnexion</Link>
-        </div>
+        <button className="mt-10 w-full bg-red-900/20 text-red-400 p-3 rounded flex items-center gap-2 hover:bg-red-900/40"><LogOut size={18} /> Déconnexion</button>
       </aside>
 
-      <main className="flex-1 p-8">
-        <header className="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-          <div className="flex items-center gap-4">
-            <div className={`p-3 rounded-full text-white font-bold ${role === 'agent' ? 'bg-blue-600' : 'bg-purple-600'}`}>{role === 'agent' ? 'W' : 'M'}</div>
-            <div><p className="text-sm text-slate-500">Session :</p><p className="font-bold">{role === 'agent' ? 'Wafaa Agent' : 'Mohamed Superviseur'}</p></div>
+      {/* Main Content */}
+      <main className="flex-1 p-8 bg-slate-50 text-slate-900">
+        <div className="max-w-5xl mx-auto">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border mb-8 flex justify-between items-center">
+             <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-100 text-blue-600 rounded-full font-bold">W</div>
+                <div><p className="text-xs text-slate-500 uppercase tracking-wider">Session active</p><p className="font-bold text-lg">Wafaa Agent • <span className="text-green-500 text-sm">EN LIGNE</span></p></div>
+             </div>
+             <div className="flex gap-2">
+                <button className="bg-slate-900 text-white px-4 py-2 rounded-lg flex items-center gap-2"><Phone size={18}/> Appel Manuel</button>
+             </div>
           </div>
-        </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <section className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
-              <h2 className="font-bold flex items-center gap-2"><UserCircle size={20}/> FICHE : {formData.nom}</h2>
-              <span className="text-xs px-3 py-1 rounded-full bg-blue-500 font-bold">{status}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Fiche Client */}
+            <div className="lg:col-span-2 space-y-6">
+              <section className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                <div className="bg-slate-900 p-4 text-white flex justify-between">
+                  <h2 className="font-bold flex items-center gap-2"><UserCircle /> FICHE : JEAN DURAND</h2>
+                  <span className="bg-blue-500 px-3 py-1 rounded text-xs font-bold">{status}</span>
+                </div>
+                <div className="p-6 grid grid-cols-2 gap-4">
+                  <div><label className="text-xs text-slate-400 uppercase">Nom complet</label><input type="text" defaultValue="JEAN DURAND" className="w-full border-b p-2 focus:border-blue-500 outline-none" /></div>
+                  <div><label className="text-xs text-slate-400 uppercase">Date de Naissance</label><input type="text" defaultValue="15/10/1988" className="w-full border-b p-2 outline-none" /></div>
+                  <div className="col-span-2"><label className="text-xs text-slate-400 uppercase">Email</label><input type="text" defaultValue="m.elite@gmail.com" className="w-full border-b p-2 outline-none" /></div>
+                  <div className="col-span-2"><label className="text-xs text-slate-400 uppercase">Observations</label><textarea className="w-full border p-2 rounded mt-1 h-32" placeholder="Détails de l'échange..."></textarea></div>
+                </div>
+              </section>
             </div>
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <input type="text" value={formData.nom} onChange={(e)=>setFormData({...formData, nom:e.target.value})} className="border p-2 rounded bg-slate-50" placeholder="Nom" />
-              <input type="email" value={formData.email} onChange={(e)=>setFormData({...formData, email:e.target.value})} className="border p-2 rounded bg-slate-50" placeholder="Email" />
-              <textarea className="md:col-span-2 border p-2 rounded bg-slate-50" rows={4} placeholder="Observations..."></textarea>
-            </div>
-          </section>
 
-          <section className="space-y-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
-              <h3 className="font-bold mb-4">QUALIFICATIONS</h3>
-              <div className="grid grid-cols-2 gap-2 mb-6">
-                <button onClick={()=>setStatus('VENTE ✅')} className="bg-green-600 text-white p-2 rounded font-bold">VENTE</button>
-                <button onClick={()=>setStatus('REFUS')} className="bg-red-600 text-white p-2 rounded font-bold">REFUS</button>
+            {/* Qualifications - Tous les boutons ici */}
+            <aside className="space-y-6">
+              <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
+                <h3 className="font-bold text-center mb-4 uppercase tracking-widest text-sm">Qualifications</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => setStatus('VENTE ✅')} className="bg-green-600 text-white p-3 rounded font-bold hover:bg-green-700">VENTE</button>
+                  <button onClick={() => setStatus('RAPPEL 📞')} className="bg-blue-500 text-white p-3 rounded font-bold hover:bg-blue-600">RAPPEL</button>
+                  <button onClick={() => setStatus('RDV PRIS 📅')} className="bg-amber-500 text-white p-3 rounded font-bold hover:bg-amber-600">RDV PRIS</button>
+                  <button onClick={() => setStatus('NRP')} className="bg-slate-400 text-white p-3 rounded font-bold hover:bg-slate-500">NRP</button>
+                  <button onClick={() => setStatus('HORS CIBLE')} className="bg-slate-600 text-white p-3 rounded font-bold hover:bg-slate-700 text-xs">HORS CIBLE</button>
+                  <button onClick={() => setStatus('REFUS ❌')} className="bg-red-600 text-white p-3 rounded font-bold hover:bg-red-700">REFUS</button>
+                  <button onClick={() => setStatus('BLOCTEL')} className="bg-black text-white p-3 rounded font-bold col-span-2 hover:bg-slate-800">BLOCTEL / DNC</button>
+                </div>
+                
+                <div className="mt-6 pt-6 border-t space-y-3">
+                  <label className="w-full bg-emerald-600 text-white p-3 rounded-xl flex items-center justify-center gap-2 font-bold cursor-pointer hover:bg-emerald-700">
+                    <FileSpreadsheet size={18} /> IMPORTER EXCEL
+                    <input type="file" className="hidden" accept=".xlsx, .xls" />
+                  </label>
+                  <button className="w-full bg-slate-900 text-white p-4 rounded-xl font-bold shadow-lg hover:bg-slate-800 flex items-center justify-center gap-2">
+                    <Save size={18} /> ENREGISTRER LA FICHE
+                  </button>
+                </div>
               </div>
-              <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="hidden" id="excel-upload" />
-              <label htmlFor="excel-upload" className="w-full bg-emerald-600 text-white py-3 rounded-xl flex items-center justify-center gap-2 font-bold cursor-pointer hover:bg-emerald-700 mb-3 shadow-lg"><FileSpreadsheet size={20} /> IMPORTER EXCEL</label>
-              <button onClick={()=>alert('Sauvegardé')} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold">ENREGISTRER LA FICHE</button>
-            </div>
-          </section>
+            </aside>
+          </div>
         </div>
       </main>
     </div>
