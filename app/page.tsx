@@ -9,7 +9,8 @@ export default function CRMPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white flex flex-col items-center p-4 md:p-8">
+  <div style={{ backgroundColor: '#020617', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', color: 'white' }}>
+    <div style={{ width: '100%', maxWidth: '1200px', padding: '20px' }}></div>
       
       {/* HEADER CENTRÉ */}
       <div className="w-full max-w-5xl flex justify-between items-center mb-10 bg-slate-900/80 p-4 rounded-2xl border border-slate-800 backdrop-blur-md">
