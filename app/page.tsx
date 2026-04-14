@@ -1,20 +1,11 @@
 "use client";
 import React, { useState } from 'react';
 import Link from 'next/link';
-import * as XLSX from 'xlsx'; // Importation pour la lecture Excel
+import * as XLSX from 'xlsx';
 import { 
-  User, 
-  ShieldCheck, 
-  Phone, 
-  MessageSquare, 
-  Save, 
-  Mail, 
-  Calendar as CalendarIcon, 
-  MapPin, 
-  UserCircle, 
-  LayoutDashboard,
-  LogOut,
-  FileSpreadsheet
+  User, ShieldCheck, Phone, MessageSquare, Save, Mail, 
+  Calendar as CalendarIcon, MapPin, UserCircle, LayoutDashboard, 
+  LogOut, FileSpreadsheet 
 } from 'lucide-react';
 
 export default function CRMPage() {
@@ -28,226 +19,78 @@ export default function CRMPage() {
     notes: ""
   });
 
-  // Fonction pour lire le fichier Excel
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (evt) => {
       const bstr = evt.target?.result;
       const wb = XLSX.read(bstr, { type: 'binary' });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
+      const ws = wb.Sheets[wb.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json(ws) as any[];
-
       if (data.length > 0) {
-        const firstRow = data[0];
-        // On remplit les cases automatiquement avec les colonnes de ton Excel
+        const f = data[0];
         setFormData({
           ...formData,
-          nom: (firstRow.Nom || firstRow.nom || "Client Importé").toUpperCase(),
-          email: firstRow.Email || firstRow.email || "",
-          adresse: firstRow.Adresse || firstRow.adresse || "",
-          dateNaiss: firstRow.Date || firstRow.date || ""
+          nom: (f.Nom || f.nom || "Client Importé").toUpperCase(),
+          email: f.Email || f.email || "",
+          adresse: f.Adresse || f.adresse || "",
+          dateNaiss: f.Date || f.date || ""
         });
-        alert("📊 Fiche chargée depuis l'Excel !");
+        alert("📊 Données importées !");
       }
     };
     reader.readAsBinaryString(file);
   };
 
-  const handleSave = () => {
-    alert(`✅ Fiche de ${formData.nom} enregistrée !\nStatut final : ${status}`);
-  };
-
-  const updateStatus = (newStatus: string) => {
-    setStatus(newStatus);
-  };
-
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
-      
-      {/* Sidebar Latérale */}
       <aside className="w-64 bg-slate-900 text-white p-6 hidden md:flex flex-col">
-        <h1 className="text-2xl font-bold mb-8 flex items-center gap-2">
-          <ShieldCheck className="text-blue-400" /> ProCrm.
-        </h1>
-        
+        <h1 className="text-2xl font-bold mb-8 flex items-center gap-2"><ShieldCheck className="text-blue-400" /> ProCrm.</h1>
         <nav className="space-y-4 flex-1">
-          <div 
-            className={`p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-all ${role === 'agent' ? 'bg-blue-600 shadow-lg' : 'hover:bg-slate-800'}`} 
-            onClick={() => setRole('agent')}
-          >
-            <User size={20} /> Espace Agent
-          </div>
-          <div 
-            className={`p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-all ${role === 'superviseur' ? 'bg-purple-600 shadow-lg' : 'hover:bg-slate-800'}`} 
-            onClick={() => setRole('superviseur')}
-          >
-            <ShieldCheck size={20} /> Superviseur
-          </div>
-
+          <div onClick={() => setRole('agent')} className={`p-3 rounded-lg flex items-center gap-3 cursor-pointer ${role === 'agent' ? 'bg-blue-600' : 'hover:bg-slate-800'}`}><User size={20} /> Espace Agent</div>
+          <div onClick={() => setRole('superviseur')} className={`p-3 rounded-lg flex items-center gap-3 cursor-pointer ${role === 'superviseur' ? 'bg-purple-600' : 'hover:bg-slate-800'}`}><ShieldCheck size={20} /> Superviseur</div>
           <hr className="border-slate-700 my-4" />
-
-          <Link href="/calendar" className="p-3 rounded-lg flex items-center gap-3 hover:bg-slate-800 transition-colors text-slate-300">
-            <CalendarIcon size={20} /> Calendrier
-          </Link>
-          
-          <Link href="/admin" className="p-3 rounded-lg flex items-center gap-3 hover:bg-slate-800 transition-colors text-slate-300">
-            <LayoutDashboard size={20} /> Stats Admin
-          </Link>
+          <Link href="/calendar" className="p-3 rounded-lg flex items-center gap-3 hover:bg-slate-800"><CalendarIcon size={20} /> Calendrier</Link>
+          <Link href="/admin" className="p-3 rounded-lg flex items-center gap-3 hover:bg-slate-800"><LayoutDashboard size={20} /> Stats Admin</Link>
         </nav>
-        
         <div className="pt-10 border-t border-slate-700 space-y-3">
-          <button className="w-full bg-slate-800 p-3 rounded flex items-center gap-2 hover:bg-slate-700 transition-colors">
-            <Phone size={18} /> Appel Manuel
-          </button>
-          
-          <Link href="/login" className="w-full bg-red-900/20 text-red-400 p-3 rounded flex items-center gap-2 hover:bg-red-900/40 transition-colors">
-            <LogOut size={18} /> Déconnexion
-          </Link>
+          <button className="w-full bg-slate-800 p-3 rounded flex items-center gap-2 hover:bg-slate-700"><Phone size={18} /> Appel Manuel</button>
+          <Link href="/login" className="w-full bg-red-900/20 text-red-400 p-3 rounded flex items-center gap-2 hover:bg-red-900/40"><LogOut size={18} /> Déconnexion</Link>
         </div>
       </aside>
 
-      {/* Contenu Principal */}
-      <main className="flex-1 p-8 overflow-y-auto">
+      <main className="flex-1 p-8">
         <header className="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
           <div className="flex items-center gap-4">
-            <div className={`p-2 rounded-full text-white font-bold ${role === 'agent' ? 'bg-blue-600' : 'bg-purple-600'}`}>
-              {role === 'agent' ? 'W' : 'M'}
-            </div>
-            <div>
-              <p className="text-sm text-slate-500 font-medium">Session active :</p>
-              <p className="font-bold uppercase tracking-tight">
-                {role === 'agent' ? 'Wafaa Agent' : 'Mohamed Superviseur'} 
-                <span className="ml-2 text-green-500 text-xs">● EN LIGNE</span>
-              </p>
-            </div>
+            <div className={`p-3 rounded-full text-white font-bold ${role === 'agent' ? 'bg-blue-600' : 'bg-purple-600'}`}>{role === 'agent' ? 'W' : 'M'}</div>
+            <div><p className="text-sm text-slate-500">Session :</p><p className="font-bold">{role === 'agent' ? 'Wafaa Agent' : 'Mohamed Superviseur'}</p></div>
           </div>
-          {role === 'superviseur' && (
-            <div className="bg-purple-50 text-purple-700 px-4 py-2 rounded-full border border-purple-200 text-sm italic animate-pulse">
-              "Wafaa, pense à bien valider les adresses mails"
-            </div>
-          )}
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Fiche Prospect */}
           <section className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
-              <h2 className="font-bold flex items-center gap-2 tracking-wide">
-                <UserCircle size={20} className="text-blue-400"/> FICHE : {formData.nom}
-              </h2>
-              <span className={`text-xs px-3 py-1 rounded-full font-bold animate-pulse ${status === 'VENTE ✅' ? 'bg-green-600' : 'bg-blue-500'}`}>
-                {status}
-              </span>
+              <h2 className="font-bold flex items-center gap-2"><UserCircle size={20}/> FICHE : {formData.nom}</h2>
+              <span className="text-xs px-3 py-1 rounded-full bg-blue-500 font-bold">{status}</span>
             </div>
-            
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <label className="block">
-                  <span className="text-slate-500 text-sm flex items-center gap-2 mb-1 text-slate-400"><User size={14}/> Nom complet</span>
-                  <input 
-                    type="text" 
-                    value={formData.nom} 
-                    onChange={(e) => setFormData({...formData, nom: e.target.value})}
-                    className="mt-1 block w-full border-slate-200 rounded-lg bg-slate-50 p-2.5 border focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-slate-500 text-sm flex items-center gap-2 mb-1 text-slate-400"><Mail size={14}/> Email</span>
-                  <input 
-                    type="email" 
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    className="mt-1 block w-full border-slate-200 rounded-lg bg-slate-50 p-2.5 border focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
-                  />
-                </label>
-              </div>
-              <div className="space-y-4">
-                <label className="block">
-                  <span className="text-slate-500 text-sm flex items-center gap-2 mb-1 text-slate-400"><CalendarIcon size={14}/> Date de Naissance</span>
-                  <input 
-                    type="date" 
-                    value={formData.dateNaiss}
-                    onChange={(e) => setFormData({...formData, dateNaiss: e.target.value})}
-                    className="mt-1 block w-full border-slate-200 rounded-lg bg-slate-50 p-2.5 border focus:ring-2 focus:ring-blue-500 outline-none" 
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-slate-500 text-sm flex items-center gap-2 mb-1 text-slate-400"><MapPin size={14}/> Adresse Postale</span>
-                  <input 
-                    type="text" 
-                    value={formData.adresse}
-                    onChange={(e) => setFormData({...formData, adresse: e.target.value})}
-                    className="mt-1 block w-full border-slate-200 rounded-lg bg-slate-50 p-2.5 border focus:ring-2 focus:ring-blue-500 outline-none" 
-                  />
-                </label>
-              </div>
-              <div className="md:col-span-2">
-                <label className="block">
-                  <span className="text-slate-500 text-sm mb-1 block font-medium">Observations de l'appel</span>
-                  <textarea 
-                    rows={4} 
-                    value={formData.notes}
-                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                    className="mt-1 block w-full border-slate-200 rounded-lg bg-slate-50 p-2.5 border focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
-                    placeholder="Saisir les observations ici..."
-                  ></textarea>
-                </label>
-              </div>
+              <input type="text" value={formData.nom} onChange={(e)=>setFormData({...formData, nom:e.target.value})} className="border p-2 rounded bg-slate-50" placeholder="Nom" />
+              <input type="email" value={formData.email} onChange={(e)=>setFormData({...formData, email:e.target.value})} className="border p-2 rounded bg-slate-50" placeholder="Email" />
+              <textarea className="md:col-span-2 border p-2 rounded bg-slate-50" rows={4} placeholder="Observations..."></textarea>
             </div>
           </section>
 
-          {/* Qualifications & Actions */}
           <section className="space-y-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-              <h3 className="font-bold mb-4 flex items-center gap-2 border-b pb-2 text-slate-700 uppercase tracking-wider">Qualifications</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => updateStatus('VENTE ✅')} className="p-3 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 font-bold shadow-md transition-all active:scale-95">VENTE ✅</button>
-                <button onClick={() => updateStatus('RAPPEL 📅')} className="p-3 text-sm rounded-lg bg-blue-500 text-white hover:bg-blue-600 font-bold shadow-md transition-all active:scale-95">RAPPEL 📅</button>
-                <button onClick={() => updateStatus('RDV PRIS')} className="p-2 text-xs rounded-lg bg-amber-500 text-white hover:bg-amber-600 font-bold transition-all">RDV PRIS</button>
-                <button onClick={() => updateStatus('NRP')} className="p-2 text-sm rounded-lg bg-slate-400 text-white hover:bg-slate-500 font-bold">NRP</button>
-                <button onClick={() => updateStatus('HORS CIBLE')} className="p-2 text-sm rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300">HORS CIBLE</button>
-                <button onClick={() => updateStatus('REFUS')} className="p-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 font-bold transition-all active:scale-95">REFUS</button>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
+              <h3 className="font-bold mb-4">QUALIFICATIONS</h3>
+              <div className="grid grid-cols-2 gap-2 mb-6">
+                <button onClick={()=>setStatus('VENTE ✅')} className="bg-green-600 text-white p-2 rounded font-bold">VENTE</button>
+                <button onClick={()=>setStatus('REFUS')} className="bg-red-600 text-white p-2 rounded font-bold">REFUS</button>
               </div>
-              
-              <div className="mt-8 space-y-3">
-                {/* Bouton Import Excel */}
-                <input 
-                  type="file" 
-                  accept=".xlsx, .xls" 
-                  onChange={handleFileUpload} 
-                  className="hidden" 
-                  id="excel-upload" 
-                />
-                <label 
-                  htmlFor="excel-upload" 
-                  className="w-full bg-emerald-600 text-white py-3 rounded-xl flex items-center justify-center gap-2 font-bold cursor-pointer hover:bg-emerald-700 transition-all shadow-md active:scale-95 border-b-4 border-emerald-800"
-                >
-                  <FileSpreadsheet size={20} /> IMPORTER LISTE EXCEL
-                </label>
-
-                {/* Bouton Enregistrer */}
-                <button 
-                  onClick={handleSave}
-                  className="w-full bg-slate-900 text-white py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-600 transition-all shadow-xl font-bold group border-b-4 border-slate-950"
-                >
-                  <Save size={20} className="group-hover:animate-bounce" /> ENREGISTRER LA FICHE
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-blue-600 p-6 rounded-2xl text-white shadow-lg relative overflow-hidden">
-               <div className="relative z-10">
-                 <h4 className="text-lg font-bold mb-1">Objectif Hebdo</h4>
-                 <p className="text-blue-100 text-sm mb-4">8/15 ventes réalisées</p>
-                 <div className="w-full bg-blue-400 rounded-full h-2">
-                   <div className="bg-white h-2 rounded-full w-[53%] shadow-[0_0_10px_rgba(255,255,255,0.5)]"></div>
-                 </div>
-               </div>
-               <ShieldCheck className="absolute -right-4 -bottom-4 w-24 h-24 text-blue-500 opacity-20" />
+              <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="hidden" id="excel-upload" />
+              <label htmlFor="excel-upload" className="w-full bg-emerald-600 text-white py-3 rounded-xl flex items-center justify-center gap-2 font-bold cursor-pointer hover:bg-emerald-700 mb-3 shadow-lg"><FileSpreadsheet size={20} /> IMPORTER EXCEL</label>
+              <button onClick={()=>alert('Sauvegardé')} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold">ENREGISTRER LA FICHE</button>
             </div>
           </section>
         </div>
