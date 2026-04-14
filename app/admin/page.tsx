@@ -1,113 +1,94 @@
 "use client";
-import React, { useRef, useState } from 'react';
-import { Shield, Users, BarChart, Upload, PhoneForwarded, History, FileText, CheckCircle } from 'lucide-react';
-import Link from 'next/link';
+import React, { useState } from 'react';
+import * as XLSX from 'xlsx';
+import { supabase } from '@/lib/supabase';
+import { Upload, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 
 export default function AdminPage() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [stats, setStats] = useState({ imported: 0, total: 0 });
 
-  // FONCTION : Déclencher le choix du fichier
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  // FONCTION : Gérer le fichier sélectionné
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setFileName(file.name);
-      alert(`Fichier "${file.name}" prêt à être injecté aux agents !`);
-    }
+    setIsUploading(true);
+    const reader = new FileReader();
+
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        
+        // On transforme l'Excel en JSON
+        const rawData: any[] = XLSX.utils.sheet_to_json(ws);
+        setStats({ imported: 0, total: rawData.length });
+
+        // On formate les données pour qu'elles correspondent exactement à ta base Supabase
+        const formattedData = rawData.map(row => ({
+          nom: row["nom"] || "",
+          prenom: row["prénom"] || "",
+          date_naissance: row["date de naissance"] || "",
+          email: row["adresse mail"] || "",
+          telephone: row["téléphone"] || row["tel"] || "", // Ajouté car indispensable pour appeler
+          statut: 'nouveau',
+          commentaire: `Adresse: ${row["adresse"] || ""} ${row["code postal"] || ""} ${row["ville"] || ""}`
+        }));
+
+        // Envoi par paquets vers Supabase
+        const { error } = await supabase
+          .from('leads')
+          .insert(formattedData);
+
+        if (error) throw error;
+
+        setStats(prev => ({ ...prev, imported: rawData.length }));
+        alert("Importation réussie ! " + rawData.length + " contacts ajoutés.");
+      } catch (err: any) {
+        alert("Erreur lors de l'import : " + err.message);
+      } finally {
+        setIsUploading(false);
+      }
+    };
+
+    reader.readAsBinaryString(file);
   };
 
   return (
-    <div style={{ backgroundColor: '#020617', minHeight: '100vh', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px', fontFamily: 'sans-serif' }}>
-      
-      {/* HEADER */}
-      <div style={{ width: '100%', maxWidth: '1100px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
-        <h1 style={{ color: '#7c3aed', fontWeight: 'black', fontSize: '32px' }}>ESPACE SUPERVISEUR</h1>
-        <Link href="/" style={{ backgroundColor: '#1e293b', padding: '10px 20px', borderRadius: '10px', textDecoration: 'none', color: 'white', border: '1px solid #7c3aed' }}>RETOUR AGENT</Link>
-      </div>
+    <div style={{ backgroundColor: '#020617', minHeight: '100vh', color: 'white', padding: '40px', fontFamily: 'sans-serif' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto', backgroundColor: '#0f172a', padding: '30px', borderRadius: '20px', border: '1px solid #1e293b' }}>
+        <h1 style={{ color: '#3b82f6', marginBottom: '10px' }}>Espace Superviseur</h1>
+        <p style={{ color: '#94a3b8', marginBottom: '30px' }}>Importez vos fichiers de prospection (.xlsx ou .csv)</p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', width: '100%', maxWidth: '1100px', marginBottom: '30px' }}>
-        
-        {/* STATS */}
-        <div style={{ backgroundColor: '#0f172a', padding: '25px', borderRadius: '20px', borderTop: '5px solid #3b82f6', textAlign: 'center' }}>
-          <Users color="#3b82f6" style={{ marginBottom: '10px' }}/>
-          <h3 style={{ fontSize: '12px', color: '#94a3b8' }}>AGENTS EN LIGNE</h3>
-          <p style={{ fontSize: '35px', fontWeight: 'black' }}>12</p>
-        </div>
-
-        <div style={{ backgroundColor: '#0f172a', padding: '25px', borderRadius: '20px', borderTop: '5px solid #10b981', textAlign: 'center' }}>
-          <BarChart color="#10b981" style={{ marginBottom: '10px' }}/>
-          <h3 style={{ fontSize: '12px', color: '#94a3b8' }}>PRODUCTION JOUR</h3>
-          <p style={{ fontSize: '35px', fontWeight: 'black', color: '#10b981' }}>48</p>
-        </div>
-        
-        {/* ZONE D'IMPORTATION ACTIVE */}
-        <div 
-          onClick={handleImportClick}
-          style={{ 
-            backgroundColor: '#0f172a', 
-            padding: '25px', 
-            borderRadius: '20px', 
-            border: fileName ? '2px solid #10b981' : '2px dashed #7c3aed', 
-            textAlign: 'center', 
-            cursor: 'pointer',
-            transition: 'all 0.3s'
-          }}
-        >
+        <div style={{ border: '2px dashed #334155', borderRadius: '15px', padding: '40px', textAlign: 'center', backgroundColor: '#020617' }}>
           <input 
             type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileChange} 
+            accept=".xlsx, .xls, .csv" 
+            onChange={handleImport} 
             style={{ display: 'none' }} 
-            accept=".csv, .xlsx"
+            id="excel-upload"
+            disabled={isUploading}
           />
-          {fileName ? (
-            <>
-              <CheckCircle color="#10b981" style={{ marginBottom: '10px' }}/>
-              <h3 style={{ fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>{fileName}</h3>
-              <p style={{ fontSize: '10px', color: '#64748b' }}>Fichier prêt à l'injection</p>
-            </>
-          ) : (
-            <>
-              <Upload color="#7c3aed" style={{ marginBottom: '10px' }}/>
-              <h3 style={{ fontSize: '12px', color: '#7c3aed', fontWeight: 'bold' }}>INJECTER FICHIER LEADS</h3>
-              <p style={{ fontSize: '10px', color: '#64748b' }}>CLIQUEZ POUR CHOISIR (CSV / EXCEL)</p>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* MONITORING AGENTS */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', width: '100%', maxWidth: '1100px' }}>
-        <div style={{ backgroundColor: '#0f172a', padding: '30px', borderRadius: '25px', border: '1px solid #334155' }}>
-          <h3 style={{ color: '#f59e0b', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <PhoneForwarded size={20}/> SUIVI TEMPS RÉEL
-          </h3>
-          <div style={{ borderLeft: '2px solid #1e293b', paddingLeft: '15px' }}>
-            <p style={{ marginBottom: '15px', color: '#10b981', fontSize: '14px' }}>● Agent 01 : En appel (04:12)</p>
-            <p style={{ marginBottom: '15px', color: '#d97706', fontSize: '14px' }}>● Agent 02 : Pause Café</p>
-            <p style={{ marginBottom: '15px', color: '#10b981', fontSize: '14px' }}>● Agent 03 : En appel (02:45)</p>
-          </div>
+          <label htmlFor="excel-upload" style={{ cursor: isUploading ? 'not-allowed' : 'pointer' }}>
+            <Upload size={48} color={isUploading ? '#475569' : '#3b82f6'} style={{ marginBottom: '15px' }} />
+            <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
+              {isUploading ? "Importation en cours..." : "Cliquez pour choisir un fichier"}
+            </div>
+            <p style={{ color: '#64748b', marginTop: '10px' }}>Format accepté : Nom, Prénom, Téléphone, Adresse mail...</p>
+          </label>
         </div>
 
-        <div style={{ backgroundColor: '#0f172a', padding: '30px', borderRadius: '25px', border: '1px solid #334155' }}>
-          <h3 style={{ color: '#3b82f6', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <History size={20}/> DERNIÈRES INJECTIONS
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ fontSize: '12px', backgroundColor: '#020617', padding: '10px', borderRadius: '8px', border: '1px solid #1e293b' }}>
-              <FileText size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }}/>
-              leads_mutuelle_paris.csv - <span style={{ color: '#10b981' }}>Injecté</span>
-            </div>
-            <div style={{ fontSize: '12px', backgroundColor: '#020617', padding: '10px', borderRadius: '8px', border: '1px solid #1e293b' }}>
-              <FileText size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }}/>
-              leads_prevoyance_lyon.xlsx - <span style={{ color: '#10b981' }}>Injecté</span>
-            </div>
+        {stats.total > 0 && (
+          <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#1e293b', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <FileText color="#3b82f6" />
+            <span>{stats.imported} / {stats.total} contacts importés dans la base de données.</span>
           </div>
+        )}
+
+        <div style={{ marginTop: '30px', borderTop: '1px solid #1e293b', paddingTop: '20px' }}>
+           <a href="/" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '14px' }}>← Retour au Dashboard Agent</a>
         </div>
       </div>
     </div>
