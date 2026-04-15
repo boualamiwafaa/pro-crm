@@ -1,6 +1,9 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Phone, Calendar, MessageSquare, Clock, Headset, Save, Send, ChevronDown, Eraser } from 'lucide-react';
+import { 
+  Phone, Calendar, MessageSquare, Clock, Headset, Save, Send, 
+  ChevronDown, Eraser, LogOut, Mic, Keyboard 
+} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 
@@ -13,6 +16,11 @@ export default function AgentPage() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [rdvDate, setRdvDate] = useState("");
   const [comment, setComment] = useState("");
+  
+  // États pour le Chat
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [agentId] = useState("Agent_1");
 
   // Formulaire local
   const [formData, setFormData] = useState({
@@ -21,7 +29,19 @@ export default function AgentPage() {
 
   const statusOptions = ["En ligne", "Pause", "Occupé", "Déjeuner"];
 
-  // 1. CHARGER LE CLIENT SUIVANT
+  // --- LOGIQUE CHAT ---
+  const fetchChat = async () => {
+    const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: true });
+    if (data) setMessages(data);
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim()) return;
+    await supabase.from('messages').insert([{ content: newMessage, sender_id: agentId }]);
+    setNewMessage("");
+  };
+
+  // --- LOGIQUE LEADS ---
   const fetchNextLead = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -50,9 +70,20 @@ export default function AgentPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchNextLead(); }, []);
+  useEffect(() => {
+    fetchNextLead();
+    fetchChat();
 
-  // 2. QUALIFIER ET PASSER AU SUIVANT
+    // Souscription Realtime pour le chat
+    const channel = supabase.channel('chat-agent')
+      .on('postgres_changes', { event: 'INSERT', table: 'messages' }, (payload) => {
+        setMessages((prev) => [...prev, payload.new]);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const handleQualify = async (qualif: string) => {
     if (!lead) return;
     const { error } = await supabase
@@ -67,12 +98,9 @@ export default function AgentPage() {
     if (!error) {
       setShowCalendar(false);
       fetchNextLead();
-    } else {
-      alert("Erreur lors de la qualification");
     }
   };
 
-  // 3. ENREGISTRER LES MODIFICATIONS DU FORMULAIRE
   const saveLeadData = async () => {
     if (!lead) return;
     const { error } = await supabase
@@ -92,12 +120,17 @@ export default function AgentPage() {
     if (!error) alert("Fiche mise à jour !");
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  };
+
   if (loading) return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">Chargement du CRM...</div>;
 
   return (
     <div style={{ backgroundColor: '#020617', minHeight: '100vh', color: 'white', padding: '20px', fontFamily: 'sans-serif' }}>
       
-      {/* HEADER */}
+      {/* HEADER AVEC DÉCONNEXION */}
       <div style={{ display: 'flex', justifyContent: 'space-between', backgroundColor: '#1e293b', padding: '15px', borderRadius: '15px', marginBottom: '20px', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ position: 'relative' }}>
@@ -116,21 +149,38 @@ export default function AgentPage() {
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
           <Headset color={lead ? "#10b981" : "#ef4444"} />
           <Link href="/admin" style={{ backgroundColor: '#7c3aed', padding: '10px 20px', borderRadius: '8px', textDecoration: 'none', color: 'white', fontWeight: 'bold' }}>ADMIN</Link>
+          <button onClick={handleLogout} style={{ backgroundColor: '#ef4444', border: 'none', color: 'white', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+            <LogOut size={18}/> DÉCONNEXION
+          </button>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr 300px', gap: '20px' }}>
         
-        {/* COLONNE GAUCHE */}
+        {/* COLONNE GAUCHE (CHAT RÉEL) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <div style={{ backgroundColor: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b' }}>
+          <div style={{ backgroundColor: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', height: '400px' }}>
             <h3 style={{ fontSize: '14px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}><MessageSquare size={16}/> CHAT ÉQUIPE</h3>
-            <div style={{ height: '150px', backgroundColor: '#020617', borderRadius: '8px', padding: '10px', fontSize: '12px', overflowY: 'auto', marginBottom: '10px' }}>
-              <p><span style={{ color: '#7c3aed' }}>Système:</span> Bienvenue Agent_1</p>
+            <div style={{ flex: 1, backgroundColor: '#020617', borderRadius: '8px', padding: '10px', fontSize: '12px', overflowY: 'auto', marginBottom: '10px' }}>
+              {messages.map((m, i) => (
+                <div key={i} style={{ marginBottom: '8px', textAlign: m.sender_id === agentId ? 'right' : 'left' }}>
+                  <div style={{ fontSize: '9px', color: '#64748b' }}>{m.sender_id}</div>
+                  <div style={{ display: 'inline-block', padding: '6px 10px', borderRadius: '8px', backgroundColor: m.sender_id === 'Admin' ? '#3b82f6' : '#334155' }}>
+                    {m.content}
+                  </div>
+                </div>
+              ))}
             </div>
             <div style={{ display: 'flex', gap: '5px' }}>
-              <input type="text" placeholder="Message..." style={{ flex: 1, padding: '8px', borderRadius: '5px', backgroundColor: '#1e293b', border: 'none', color: 'white' }} />
-              <button style={{ backgroundColor: '#2563eb', border: 'none', borderRadius: '5px', padding: '8px' }}><Send size={14} color="white"/></button>
+              <input 
+                type="text" 
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                placeholder="Message..." 
+                style={{ flex: 1, padding: '8px', borderRadius: '5px', backgroundColor: '#1e293b', border: 'none', color: 'white' }} 
+              />
+              <button onClick={sendMessage} style={{ backgroundColor: '#2563eb', border: 'none', borderRadius: '5px', padding: '8px' }}><Send size={14} color="white"/></button>
             </div>
           </div>
           
@@ -140,7 +190,7 @@ export default function AgentPage() {
               <div style={{ fontSize: '24px', marginBottom: '10px', color: '#10b981' }}>{phoneNumber || "---"}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                 {[1,2,3,4,5,6,7,8,9,"*",0,"#"].map(n => (
-                  <button key={n} onClick={() => setPhoneNumber(p => p + n)} style={{ padding: '12px', backgroundColor: '#1e293b', color: 'white', border: 'none', borderRadius: '5px' }}>{n}</button>
+                  <button key={n} onClick={() => setPhoneNumber(p => p + String(n))} style={{ padding: '12px', backgroundColor: '#1e293b', color: 'white', border: 'none', borderRadius: '5px' }}>{n}</button>
                 ))}
               </div>
               <div style={{ display: 'flex', gap: '5px', marginTop: '10px' }}>
@@ -151,7 +201,7 @@ export default function AgentPage() {
           )}
         </div>
 
-        {/* COLONNE CENTRALE */}
+        {/* COLONNE CENTRALE (FORMULAIRE) */}
         <div style={{ backgroundColor: '#0f172a', padding: '25px', borderRadius: '20px', border: '1px solid #1e293b' }}>
           {!lead ? (
             <div style={{ textAlign: 'center', marginTop: '50px' }}>
@@ -211,7 +261,7 @@ export default function AgentPage() {
           )}
         </div>
 
-        {/* COLONNE DROITE */}
+        {/* COLONNE DROITE (NOTES) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div style={{ backgroundColor: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b', flexGrow: 1 }}>
             <h3 style={{ fontSize: '14px', marginBottom: '10px' }}>COMMENTAIRES / NOTES</h3>
