@@ -1,129 +1,115 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
-import { supabase } from '@/lib/supabase';
-import { Upload, History, CheckCircle, Users, ArrowLeft, TrendingUp } from 'lucide-react';
+import { Phone, Calendar, MessageSquare, Eraser } from 'lucide-react';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 
-export default function AdminPage() {
-  const [isUploading, setIsUploading] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState("Agent_1");
-  const [dbStats, setDbStats] = useState({ total: 0, ventes: 0, rappels: 0 });
-  const [recentCalls, setRecentCalls] = useState<any[]>([]);
+export default function AgentPage() {
+  const [lead, setLead] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("En ligne");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [showKeypad, setShowKeypad] = useState(false);
 
-  const loadData = async () => {
-    const { data: allLeads } = await supabase.from('leads').select('status');
-    if (allLeads) {
-      setDbStats({
-        total: allLeads.length,
-        ventes: allLeads.filter(d => d.status === 'vente').length,
-        rappels: allLeads.filter(d => d.status === 'rappel').length
-      });
-    }
-    const { data: latest } = await supabase
+  // Charger le prochain prospect assigné à l'Agent_1
+  const fetchNextLead = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
       .from('leads')
-      .select('last_name, first_name, status, agent_id, updated_at')
-      .neq('status', 'nouveau')
-      .order('updated_at', { ascending: false })
-      .limit(10);
-    if (latest) setRecentCalls(latest);
+      .select('*')
+      .eq('status', 'nouveau')
+      .eq('agent_id', 'Agent_1') // FILTRE ESSENTIEL POUR L'AGENT 1
+      .limit(1)
+      .maybeSingle();
+
+    if (data) {
+      setLead(data);
+    } else {
+      setLead(null);
+    }
+    setLoading(false);
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { fetchNextLead(); }, []);
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsUploading(true);
+  const handleUpdateStatus = async (newStatus: string) => {
+    if (!lead) return;
+    const { error } = await supabase
+      .from('leads')
+      .update({ 
+        status: newStatus, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', lead.id);
 
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const rawData: any[] = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-
-        const formatted = rawData.map(row => {
-          const findValue = (keywords: string[]) => {
-            const key = Object.keys(row).find(k => 
-              keywords.some(kw => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(kw))
-            );
-            return key ? row[key] : "";
-          };
-
-          return {
-            last_name: findValue(['nom', 'lastname', 'client']).toString().toUpperCase(),
-            first_name: findValue(['prenom', 'firstname']).toString(),
-            phone: findValue(['tel', 'phone', 'mobile']).toString().replace(/\s/g, ''),
-            status: 'nouveau',
-            agent_id: selectedAgent,
-            updated_at: new Date().toISOString()
-          };
-        });
-
-        const { error } = await supabase.from('leads').insert(formatted.filter(l => l.phone.length > 5));
-        if (error) throw error;
-        alert("Importation réussie !");
-        loadData();
-      } catch (err: any) {
-        alert("Erreur: " + err.message);
-      } finally {
-        setIsUploading(false);
-      }
-    };
-    reader.readAsBinaryString(file);
+    if (!error) fetchNextLead();
   };
+
+  if (loading) return (
+    <div style={{ backgroundColor: '#020617', minHeight: '100vh', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      Connexion à la base...
+    </div>
+  );
 
   return (
-    <div style={{ backgroundColor: '#020617', minHeight: '100vh', color: 'white', padding: '30px', fontFamily: 'sans-serif' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-        <h1>ESPACE SUPERVISEUR</h1>
-        <Link href="/" style={{ backgroundColor: '#1e293b', padding: '10px 20px', borderRadius: '10px', color: 'white', textDecoration: 'none' }}>← Retour Agent</Link>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '30px' }}>
-        <div style={{ backgroundColor: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-          <Users color="#3b82f6" /> <h3>TOTAL BASE</h3> <p style={{ fontSize: '24px' }}>{dbStats.total}</p>
+    <div style={{ backgroundColor: '#020617', minHeight: '100vh', color: 'white', padding: '20px', fontFamily: 'sans-serif' }}>
+      
+      {/* HEADER */}
+      <div style={{ maxWidth: '1100px', margin: '0 auto', backgroundColor: '#1e293b', padding: '15px', borderRadius: '15px', display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          <div style={{ backgroundColor: '#059669', padding: '8px 15px', borderRadius: '10px' }}>● {status}</div>
         </div>
-        <div style={{ backgroundColor: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-          <History color="#f59e0b" /> <h3>RAPPELS</h3> <p style={{ fontSize: '24px', color: '#f59e0b' }}>{dbStats.rappels}</p>
-        </div>
-        <div style={{ backgroundColor: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-          <CheckCircle color="#10b981" /> <h3>VENTES</h3> <p style={{ fontSize: '24px', color: '#10b981' }}>{dbStats.ventes}</p>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <Link href="/admin" style={{ backgroundColor: '#7c3aed', padding: '10px 20px', borderRadius: '10px', color: 'white', textDecoration: 'none' }}>SUPERVISEUR</Link>
+          <Link href="/login" style={{ color: '#f87171', padding: '10px' }}>QUITTER</Link>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '30px' }}>
-        <div style={{ backgroundColor: '#0f172a', padding: '25px', borderRadius: '20px', border: '1px solid #3b82f6' }}>
-          <h2 style={{ fontSize: '16px' }}>DISPATCHING AGENT</h2>
-          <select value={selectedAgent} onChange={(e) => setSelectedAgent(e.target.value)} style={{ width: '100%', padding: '12px', margin: '15px 0', backgroundColor: '#020617', color: 'white', borderRadius: '10px' }}>
-            <option value="Agent_1">AGENT 1</option>
-            <option value="Agent_2">AGENT 2</option>
-          </select>
-          <input type="file" id="xl" onChange={handleImport} style={{ display: 'none' }} />
-          <label htmlFor="xl" style={{ display: 'block', padding: '30px', border: '2px dashed #334155', borderRadius: '15px', textAlign: 'center', cursor: 'pointer' }}>
-            <Upload color="#3b82f6" /> <br/> {isUploading ? "IMPORTATION..." : "INJECTER EXCEL"}
-          </label>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '20px' }}>
+        
+        {/* ACTIONS GAUCHE */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <button onClick={() => setShowKeypad(!showKeypad)} style={{ backgroundColor: '#2563eb', padding: '20px', borderRadius: '15px', color: 'white' }}>⌨️ CLAVIER MANUEL</button>
+          {showKeypad && (
+            <div style={{ backgroundColor: '#0f172a', padding: '15px', borderRadius: '15px', border: '1px solid #3b82f6' }}>
+              <div style={{ fontSize: '20px', textAlign: 'center', marginBottom: '10px' }}>{phoneNumber || "---"}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
+                {[1,2,3,4,5,6,7,8,9,"*",0,"#"].map(n => (
+                  <button key={n} onClick={() => setPhoneNumber(p => p + n)} style={{ padding: '10px', backgroundColor: '#1e293b', color: 'white' }}>{n}</button>
+                ))}
+              </div>
+              <button onClick={() => setPhoneNumber("")} style={{ width: '100%', marginTop: '10px', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                <Eraser size={14}/> EFFACER
+              </button>
+            </div>
+          )}
         </div>
 
-        <div style={{ backgroundColor: '#0f172a', padding: '25px', borderRadius: '20px', border: '1px solid #1e293b' }}>
-          <h2>HISTORIQUE RÉCENT</h2>
-          <table style={{ width: '100%', marginTop: '10px' }}>
-            <thead>
-              <tr style={{ color: '#94a3b8', textAlign: 'left' }}>
-                <th>Agent</th><th>Client</th><th>Statut</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentCalls.map((call, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid #1e293b' }}>
-                  <td style={{ padding: '10px' }}>{call.agent_id}</td>
-                  <td>{call.last_name}</td>
-                  <td>{call.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* FICHE CLIENT */}
+        <div style={{ backgroundColor: '#0f172a', padding: '30px', borderRadius: '25px', border: '1px solid #1e293b' }}>
+          {!lead ? (
+            <div style={{ textAlign: 'center', padding: '40px' }}>
+               <h2>AUCUN PROSPECT DISPONIBLE</h2>
+               <p style={{ color: '#94a3b8' }}>Demandez au superviseur d'injecter un fichier pour Agent_1.</p>
+            </div>
+          ) : (
+            <>
+              <h2 style={{ color: '#60a5fa' }}>{lead.last_name} {lead.first_name}</h2>
+              <div style={{ margin: '20px 0', fontSize: '32px', color: '#10b981', fontWeight: 'bold' }}>{lead.phone}</div>
+              <button 
+                onClick={() => window.location.href=`tel:${lead.phone}`} 
+                style={{ width: '100%', backgroundColor: '#f59e0b', padding: '20px', borderRadius: '15px', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer' }}
+              >
+                📞 APPELER MAINTENANT
+              </button>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '30px' }}>
+                <button onClick={() => handleUpdateStatus('vente')} style={{ backgroundColor: '#059669', padding: '15px', borderRadius: '10px', color: 'white', fontWeight: 'bold' }}>VENTE ✅</button>
+                <button onClick={() => handleUpdateStatus('rappel')} style={{ backgroundColor: '#2563eb', padding: '15px', borderRadius: '10px', color: 'white', fontWeight: 'bold' }}>RAPPEL 📞</button>
+                <button onClick={() => handleUpdateStatus('refus')} style={{ backgroundColor: '#991b1b', padding: '15px', borderRadius: '10px', color: 'white', fontWeight: 'bold' }}>REFUS ❌</button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
