@@ -76,9 +76,13 @@ export default function AgentPage() {
 
     // Souscription Realtime pour le chat
     const channel = supabase.channel('chat-agent')
-      .on('postgres_changes', { event: 'INSERT', table: 'messages' }, (payload) => {
-        setMessages((prev) => [...prev, payload.new]);
-      })
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          setMessages((prev) => [...prev, payload.new]);
+        }
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
