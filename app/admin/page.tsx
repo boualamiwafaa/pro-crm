@@ -32,20 +32,28 @@ export default function AdminDashboard() {
     setLoading(false);
   };
 
-  // 2. TEMPS RÉEL (REALTIME)
+  // 2. TEMPS RÉEL (REALTIME) - CORRIGÉ
   useEffect(() => {
     fetchData();
 
     // On écoute tout changement sur la table messages et leads
     const channel = supabase.channel('admin-full-realtime')
-      .on('postgres_changes', { event: '*', table: 'messages' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setMessages(prev => [...prev, payload.new]);
-        } else {
-          fetchData(); // Pour les updates/deletes
+      .on(
+        'postgres_changes' as any, // Correction ici avec "as any"
+        { event: '*', table: 'messages', schema: 'public' }, 
+        (payload: any) => {
+          if (payload.eventType === 'INSERT') {
+            setMessages(prev => [...prev, payload.new]);
+          } else {
+            fetchData(); // Pour les updates/deletes
+          }
         }
-      })
-      .on('postgres_changes', { event: '*', table: 'leads' }, () => fetchData())
+      )
+      .on(
+        'postgres_changes' as any, // Correction ici aussi
+        { event: '*', table: 'leads', schema: 'public' }, 
+        () => fetchData()
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
