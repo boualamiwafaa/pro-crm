@@ -1,153 +1,185 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Users, Upload, LogOut, BarChart3, Clock, List, CheckCircle, Headphones } from 'lucide-react';
+import { Users, Upload, LogOut, BarChart3, List, Send, MessageCircle, Activity, ShieldCheck, UserPlus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import Link from 'next/link';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({ total: 0, ventes: 0, rappels: 0, nrp: 0 });
   const [leads, setLeads] = useState<any[]>([]);
-  const [agentStats, setAgentStats] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState("");
   const [selectedAgent, setSelectedAgent] = useState("Agent_1");
+  const [stats, setStats] = useState({ total: 0, ventes: 0, rappels: 0, nrp: 0 });
+  const [loading, setLoading] = useState(true);
 
+  // 1. CHARGEMENT DES DONNÉES (LEADS + CHAT)
   const fetchData = async () => {
-    const { data: allLeads } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
-    if (allLeads) {
-      setLeads(allLeads);
+    const { data: l } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
+    const { data: m } = await supabase.from('messages').select('*').order('created_at', { ascending: true }).limit(50);
+    
+    if (l) {
+      setLeads(l);
       setStats({
-        total: allLeads.length,
-        ventes: allLeads.filter(l => l.status === 'vente').length,
-        rappels: allLeads.filter(l => l.status === 'rappel').length,
-        nrp: allLeads.filter(l => l.status === 'nrp').length,
+        total: l.length,
+        ventes: l.filter(x => x.status === 'vente').length,
+        rappels: l.filter(x => x.status === 'rappel').length,
+        nrp: l.filter(x => x.status === 'nrp').length
       });
-
-      // Calculer les stats par agent
-      const agents = ["Agent_1", "Agent_2", "Agent_3"];
-      const s = agents.map(a => ({
-        name: a,
-        ventes: allLeads.filter(l => l.agent_id === a && l.status === 'vente').length,
-        total: allLeads.filter(l => l.agent_id === a).length
-      }));
-      setAgentStats(s);
     }
+    if (m) setMessages(m);
+    setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    // Ecoute en temps réel du chat et des leads
+    const chatSub = supabase.channel('realtime').on('postgres_changes', { event: '*', table: '*' }, () => fetchData()).subscribe();
+    return () => { supabase.removeChannel(chatSub); };
+  }, []);
 
-  const handleFileUpload = async (e: any) => {
-    // Ici ta logique d'import (CSV/Excel)
-    // IMPORTANT : Lors de l'import, on assigne à l'agent sélectionné
-    alert("Fichier reçu. Attribution à : " + selectedAgent);
-    // ... ton code d'insertion ici ...
+  // 2. ENVOYER UN MESSAGE CHAT
+  const sendMessage = async () => {
+    if (!newMessage.trim()) return;
+    const { error } = await supabase.from('messages').insert([{ content: newMessage, sender_id: 'Admin' }]);
+    if (!error) setNewMessage("");
+  };
+
+  // 3. INJECTER ET DISPATCHER (SIMULATION D'IMPORT VERS AGENT)
+  const handleManualInject = async () => {
+    const { error } = await supabase.from('leads').insert([
+      { 
+        first_name: "Nouveau", 
+        last_name: "Prospect", 
+        phone: "06" + Math.floor(Math.random() * 90000000), 
+        status: "nouveau", 
+        agent_id: selectedAgent,
+        created_at: new Date().toISOString()
+      }
+    ]);
+    if (!error) alert(`Lead injecté et attribué à ${selectedAgent}`);
     fetchData();
   };
 
+  if (loading) return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">Chargement Admin...</div>;
+
   return (
-    <div style={{ backgroundColor: '#020617', minHeight: '100vh', color: 'white', padding: '20px', fontFamily: 'sans-serif' }}>
+    <div style={{ backgroundColor: '#020617', minHeight: '100vh', color: 'white', padding: '25px', fontFamily: 'sans-serif' }}>
       
-      {/* BARRE DU HAUT */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', backgroundColor: '#0f172a', padding: '15px', borderRadius: '15px' }}>
-        <h1 style={{ fontSize: '20px', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}><BarChart3 color="#3b82f6"/> DASHBOARD SUPERVISEUR</h1>
-        <div style={{ display: 'flex', gap: '10px' }}>
-           <Link href="/" style={{ color: '#94a3b8', textDecoration: 'none', padding: '8px 15px' }}>Mode Agent</Link>
-           <button onClick={() => window.location.href='/login'} style={{ backgroundColor: '#ef4444', border: 'none', color: 'white', padding: '8px 15px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-             <LogOut size={16}/> Déconnexion
-           </button>
+      {/* HEADER HEADER */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', backgroundColor: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
+        <div>
+          <h1 style={{ fontSize: '22px', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}><ShieldCheck color="#3b82f6"/> SUPERVISEUR CRM</h1>
+          <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>Gestion des flux et monitoring agents</p>
+        </div>
+        <div style={{ display: 'flex', gap: '15px' }}>
+          <button onClick={() => window.location.href='/'} style={{ backgroundColor: '#1e293b', border: 'none', color: 'white', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}>Vue Agent</button>
+          <button onClick={() => window.location.href='/login'} style={{ backgroundColor: '#ef4444', border: 'none', color: 'white', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}><LogOut size={18}/> Déconnexion</button>
         </div>
       </div>
 
-      {/* STATS RAPIDES */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px', marginBottom: '30px' }}>
-        <div style={{ backgroundColor: '#1e293b', padding: '20px', borderRadius: '15px', borderLeft: '4px solid #3b82f6' }}>
-          <div style={{ color: '#94a3b8', fontSize: '12px' }}>TOTAL LEADS</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.total}</div>
-        </div>
-        <div style={{ backgroundColor: '#1e293b', padding: '20px', borderRadius: '15px', borderLeft: '4px solid #10b981' }}>
-          <div style={{ color: '#94a3b8', fontSize: '12px' }}>VENTES</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.ventes}</div>
-        </div>
-        <div style={{ backgroundColor: '#1e293b', padding: '20px', borderRadius: '15px', borderLeft: '4px solid #f59e0b' }}>
-          <div style={{ color: '#94a3b8', fontSize: '12px' }}>RAPPELS</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.rappels}</div>
-        </div>
-        <div style={{ backgroundColor: '#1e293b', padding: '20px', borderRadius: '15px', borderLeft: '4px solid #ef4444' }}>
-          <div style={{ color: '#94a3b8', fontSize: '12px' }}>NRP</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.nrp}</div>
-        </div>
+      {/* STATS CARDS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '30px' }}>
+        {[
+          { label: 'TOTAL BASE', val: stats.total, color: '#3b82f6', icon: <Database size={20}/> },
+          { label: 'VENTES CONFIRMÉES', val: stats.ventes, color: '#10b981', icon: <CheckCircle size={20}/> },
+          { label: 'RAPPELS PRÉVUS', val: stats.rappels, color: '#f59e0b', icon: <Clock size={20}/> },
+          { label: 'NRP / ÉCHECS', val: stats.nrp, color: '#ef4444', icon: <Activity size={20}/> }
+        ].map((s, i) => (
+          <div key={i} style={{ backgroundColor: '#0f172a', padding: '20px', borderRadius: '15px', borderBottom: `4px solid ${s.color}` }}>
+            <div style={{ color: '#94a3b8', fontSize: '12px', display: 'flex', justifyContent: 'space-between' }}>{s.label} {s.icon}</div>
+            <div style={{ fontSize: '28px', fontWeight: 'bold', marginTop: '10px' }}>{s.val}</div>
+          </div>
+        ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '25px' }}>
         
-        {/* SECTION HISTORIQUE & SUIVI AGENTS */}
-        <div style={{ backgroundColor: '#0f172a', padding: '20px', borderRadius: '15px' }}>
-          <h3 style={{ fontSize: '16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}><List size={18}/> PRODUCTION EN TEMPS RÉEL</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', color: '#94a3b8', fontSize: '12px', borderBottom: '1px solid #1e293b' }}>
-                <th style={{ padding: '10px' }}>AGENT</th>
-                <th style={{ padding: '10px' }}>CLIENT</th>
-                <th style={{ padding: '10px' }}>STATUT</th>
-                <th style={{ padding: '10px' }}>DERNIÈRE ACTION</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leads.slice(0, 15).map((l, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid #1e293b', fontSize: '13px' }}>
-                  <td style={{ padding: '12px' }}><span style={{ color: '#3b82f6' }}>{l.agent_id}</span></td>
-                  <td style={{ padding: '12px' }}>{l.first_name} {l.last_name}</td>
-                  <td style={{ padding: '12px' }}>
-                    <span style={{ 
-                      backgroundColor: l.status === 'vente' ? '#065f46' : l.status === 'nrp' ? '#ef4444' : '#334155',
-                      padding: '3px 8px', borderRadius: '4px', fontSize: '11px'
-                    }}>{l.status.toUpperCase()}</span>
-                  </td>
-                  <td style={{ padding: '12px', color: '#64748b' }}>{new Date(l.updated_at || l.created_at).toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* SECTION INJECTION & PERFORMANCE AGENTS */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* COLONNE GAUCHE : DISPATCH & LISTE */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
           
-          {/* MODULE D'INJECTION */}
-          <div style={{ backgroundColor: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-            <h3 style={{ fontSize: '14px', marginBottom: '15px' }}>DISTRIBUTION FICHES</h3>
-            <label style={{ fontSize: '11px', color: '#94a3b8' }}>CHOISIR L'AGENT DESTINATAIRE</label>
-            <select 
-              value={selectedAgent}
-              onChange={(e) => setSelectedAgent(e.target.value)}
-              style={{ width: '100%', padding: '10px', backgroundColor: '#020617', color: 'white', border: '1px solid #334155', borderRadius: '8px', marginTop: '5px', marginBottom: '15px' }}
-            >
-              <option value="Agent_1">AGENT 1 (Ismael)</option>
-              <option value="Agent_2">AGENT 2 (Sara)</option>
-              <option value="Agent_3">AGENT 3 (Yassine)</option>
-            </select>
-            <div style={{ border: '2px dashed #334155', padding: '20px', borderRadius: '10px', textAlign: 'center' }}>
-              <input type="file" onChange={handleFileUpload} style={{ fontSize: '12px' }} />
-              <p style={{ fontSize: '10px', color: '#64748b', marginTop: '10px' }}>Fichier .csv ou .xlsx</p>
+          {/* SECTION INJECTION */}
+          <div style={{ backgroundColor: '#0f172a', padding: '25px', borderRadius: '20px', border: '1px solid #1e293b' }}>
+            <h3 style={{ fontSize: '16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}><UserPlus size={20} color="#3b82f6"/> DISTRIBUTION DES LEADS</h3>
+            <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '12px', color: '#94a3b8' }}>SÉLECTIONNER L'AGENT DESTINATAIRE</label>
+                <select value={selectedAgent} onChange={(e) => setSelectedAgent(e.target.value)} style={{ width: '100%', padding: '12px', backgroundColor: '#020617', color: 'white', border: '1px solid #334155', borderRadius: '10px', marginTop: '8px' }}>
+                  <option value="Agent_1">AGENT 1 (Ismael)</option>
+                  <option value="Agent_2">AGENT 2 (Sara)</option>
+                  <option value="Agent_3">AGENT 3 (Yassine)</option>
+                </select>
+              </div>
+              <button onClick={handleManualInject} style={{ backgroundColor: '#2563eb', color: 'white', padding: '12px 25px', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>INJECTER FICHIER</button>
             </div>
           </div>
 
-          {/* PERFORMANCE PAR AGENT */}
-          <div style={{ backgroundColor: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
-            <h3 style={{ fontSize: '14px', marginBottom: '15px' }}>PERFORMANCE</h3>
-            {agentStats.map(a => (
-              <div key={a.name} style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#1e293b', borderRadius: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                  <span>{a.name}</span>
-                  <span style={{ color: '#10b981' }}>{a.ventes} Ventes</span>
-                </div>
-                <div style={{ width: '100%', height: '4px', backgroundColor: '#020617', borderRadius: '2px', marginTop: '5px' }}>
-                  <div style={{ width: `${(a.ventes / (a.total || 1)) * 100}%`, height: '100%', backgroundColor: '#10b981' }}></div>
+          {/* TABLEAU DE PRODUCTION */}
+          <div style={{ backgroundColor: '#0f172a', padding: '25px', borderRadius: '20px', border: '1px solid #1e293b' }}>
+            <h3 style={{ fontSize: '16px', marginBottom: '20px' }}>HISTORIQUE DE PRODUCTION</h3>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: '#64748b', fontSize: '13px', borderBottom: '1px solid #1e293b' }}>
+                  <th style={{ padding: '12px' }}>AGENT</th>
+                  <th style={{ padding: '12px' }}>CLIENT</th>
+                  <th style={{ padding: '12px' }}>TÉLÉPHONE</th>
+                  <th style={{ padding: '12px' }}>STATUT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leads.slice(0, 10).map((l, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #1e293b', fontSize: '14px' }}>
+                    <td style={{ padding: '12px', color: '#60a5fa' }}>{l.agent_id}</td>
+                    <td style={{ padding: '12px' }}>{l.first_name} {l.last_name}</td>
+                    <td style={{ padding: '12px' }}>{l.phone}</td>
+                    <td style={{ padding: '12px' }}>
+                      <span style={{ backgroundColor: l.status === 'vente' ? '#065f46' : '#1e293b', padding: '4px 10px', borderRadius: '6px', fontSize: '11px' }}>{l.status}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* COLONNE DROITE : CHAT EN TEMPS RÉEL */}
+        <div style={{ backgroundColor: '#0f172a', borderRadius: '20px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', height: '700px' }}>
+          <div style={{ padding: '20px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <MessageCircle color="#10b981"/>
+            <h3 style={{ fontSize: '16px', margin: 0 }}>CHAT ÉQUIPE</h3>
+          </div>
+          
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            {messages.map((m, i) => (
+              <div key={i} style={{ alignSelf: m.sender_id === 'Admin' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
+                <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px', textAlign: m.sender_id === 'Admin' ? 'right' : 'left' }}>{m.sender_id}</div>
+                <div style={{ 
+                  backgroundColor: m.sender_id === 'Admin' ? '#2563eb' : '#1e293b', 
+                  padding: '12px', borderRadius: m.sender_id === 'Admin' ? '15px 15px 0 15px' : '15px 15px 15px 0',
+                  fontSize: '14px'
+                }}>
+                  {m.content}
                 </div>
               </div>
             ))}
           </div>
 
+          <div style={{ padding: '20px', backgroundColor: '#020617', borderRadius: '0 0 20px 20px' }}>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input 
+                value={newMessage} 
+                onChange={(e) => setNewMessage(e.target.value)} 
+                onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                placeholder="Écrire aux agents..." 
+                style={{ flex: 1, padding: '12px', backgroundColor: '#1e293b', border: 'none', borderRadius: '10px', color: 'white' }} 
+              />
+              <button onClick={sendMessage} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '12px', borderRadius: '10px', cursor: 'pointer' }}><Send size={20}/></button>
+            </div>
+          </div>
         </div>
+
       </div>
     </div>
   );
 }
+
+// Icone manquante Database
+function Database({size}: {size: number}) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg> }
