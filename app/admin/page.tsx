@@ -1,6 +1,19 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Users, Upload, LogOut, BarChart3, List, Send, MessageCircle, Activity, ShieldCheck, UserPlus } from 'lucide-react';
+import { 
+  Users, 
+  Upload, 
+  LogOut, 
+  BarChart3, 
+  List, 
+  Send, 
+  MessageCircle, 
+  Activity, 
+  ShieldCheck, 
+  UserPlus,
+  CheckCircle, // Ajouté ici
+  Clock        // Ajouté ici
+} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function AdminDashboard() {
@@ -11,7 +24,6 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({ total: 0, ventes: 0, rappels: 0, nrp: 0 });
   const [loading, setLoading] = useState(true);
 
-  // 1. CHARGEMENT DES DONNÉES (LEADS + CHAT)
   const fetchData = async () => {
     const { data: l } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
     const { data: m } = await supabase.from('messages').select('*').order('created_at', { ascending: true }).limit(50);
@@ -31,19 +43,19 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchData();
-    // Ecoute en temps réel du chat et des leads
-    const chatSub = supabase.channel('realtime').on('postgres_changes', { event: '*', table: '*' }, () => fetchData()).subscribe();
+    const chatSub = supabase.channel('realtime')
+      .on('postgres_changes', { event: '*', table: 'messages' }, () => fetchData())
+      .on('postgres_changes', { event: '*', table: 'leads' }, () => fetchData())
+      .subscribe();
     return () => { supabase.removeChannel(chatSub); };
   }, []);
 
-  // 2. ENVOYER UN MESSAGE CHAT
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
     const { error } = await supabase.from('messages').insert([{ content: newMessage, sender_id: 'Admin' }]);
     if (!error) setNewMessage("");
   };
 
-  // 3. INJECTER ET DISPATCHER (SIMULATION D'IMPORT VERS AGENT)
   const handleManualInject = async () => {
     const { error } = await supabase.from('leads').insert([
       { 
@@ -59,12 +71,12 @@ export default function AdminDashboard() {
     fetchData();
   };
 
-  if (loading) return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">Chargement Admin...</div>;
+  if (loading) return <div style={{ backgroundColor: '#020617', color: 'white' }} className="min-h-screen flex items-center justify-center">Chargement Admin...</div>;
 
   return (
     <div style={{ backgroundColor: '#020617', minHeight: '100vh', color: 'white', padding: '25px', fontFamily: 'sans-serif' }}>
       
-      {/* HEADER HEADER */}
+      {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', backgroundColor: '#0f172a', padding: '20px', borderRadius: '15px', border: '1px solid #1e293b' }}>
         <div>
           <h1 style={{ fontSize: '22px', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}><ShieldCheck color="#3b82f6"/> SUPERVISEUR CRM</h1>
@@ -93,10 +105,8 @@ export default function AdminDashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '25px' }}>
         
-        {/* COLONNE GAUCHE : DISPATCH & LISTE */}
+        {/* COLONNE GAUCHE */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-          
-          {/* SECTION INJECTION */}
           <div style={{ backgroundColor: '#0f172a', padding: '25px', borderRadius: '20px', border: '1px solid #1e293b' }}>
             <h3 style={{ fontSize: '16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}><UserPlus size={20} color="#3b82f6"/> DISTRIBUTION DES LEADS</h3>
             <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
@@ -112,7 +122,6 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* TABLEAU DE PRODUCTION */}
           <div style={{ backgroundColor: '#0f172a', padding: '25px', borderRadius: '20px', border: '1px solid #1e293b' }}>
             <h3 style={{ fontSize: '16px', marginBottom: '20px' }}>HISTORIQUE DE PRODUCTION</h3>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -140,7 +149,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* COLONNE DROITE : CHAT EN TEMPS RÉEL */}
+        {/* COLONNE DROITE : CHAT */}
         <div style={{ backgroundColor: '#0f172a', borderRadius: '20px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', height: '700px' }}>
           <div style={{ padding: '20px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <MessageCircle color="#10b981"/>
@@ -175,11 +184,11 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
 }
 
-// Icone manquante Database
-function Database({size}: {size: number}) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg> }
+function Database({size}: {size: number}) { 
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg> 
+}
