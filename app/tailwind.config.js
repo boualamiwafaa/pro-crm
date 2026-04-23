@@ -1,0 +1,23 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        // Couleurs personnalisées pour ton CRM
+        background: "#020617",
+        foreground: "#f8fafc",
+        primary: {
+          DEFAULT: "#2563eb",
+          hover: "#1d4ed8",
+        }
+      },
+    },
+  },
+  plugins: [],
+}
