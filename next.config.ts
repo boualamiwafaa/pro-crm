@@ -1,11 +1,12 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
   typescript: {
-    ignoreBuildErrors: true, // Force le build même s'il y a des petites fautes
+    ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true, // Ignore les avertissements de style
-  },
-};
+  // ATTENTION : Dans les nouvelles versions, c'est directement à la racine, 
+  // pas dans "experimental"
+  allowedDevOrigins: ["drizzle-tainted-muppet.ngrok-free.dev"],
+} as any;
 
 export default nextConfig;

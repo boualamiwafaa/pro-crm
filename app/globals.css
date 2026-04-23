@@ -7,14 +7,16 @@
   --foreground: #f8fafc;
 }
 
-body {
-  background-color: #020617 !important;
-  color: #f8fafc !important;
+@layer base {
+  body {
+    background-color: #020617;
+    color: #f8fafc;
+    margin: 0;
+  }
 }
 
-button, .btn {
-  background-color: #2563eb !important;
-  color: white !important;
-  padding: 10px 20px !important;
-  border-radius: 8px !important;
+@layer components {
+  .btn-elite {
+    @apply bg-blue-600 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 cursor-pointer;
+  }
 }
