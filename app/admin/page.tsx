@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, LogOut, Send, MessageCircle, ShieldCheck, UserPlus, 
-  CheckCircle, Clock, Activity, Database as DbIcon, Upload, RefreshCcw, FileSpreadsheet
+  CheckCircle, Clock, Activity, Database as DbIcon, Upload, RefreshCcw, FileSpreadsheet, LayoutDashboard
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import Link from 'next/link';
 
 export default function AdminDashboard() {
   const [leads, setLeads] = useState<any[]>([]);
@@ -14,11 +15,9 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({ total: 0, ventes: 0, rappels: 0, nrp: 0 });
   const [loading, setLoading] = useState(true);
 
-  // 1. CHARGEMENT INITIAL
   const fetchData = async () => {
     const { data: l } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
     const { data: m } = await supabase.from('messages').select('*').order('created_at', { ascending: true });
-    
     if (l) {
       setLeads(l);
       setStats({
@@ -32,140 +31,119 @@ export default function AdminDashboard() {
     setLoading(false);
   };
 
-  // 2. TEMPS RÉEL (REALTIME) - CORRIGÉ
   useEffect(() => {
     fetchData();
-
-    // On écoute tout changement sur la table messages et leads
     const channel = supabase.channel('admin-full-realtime')
-      .on(
-        'postgres_changes' as any, // Correction ici avec "as any"
-        { event: '*', table: 'messages', schema: 'public' }, 
-        (payload: any) => {
-          if (payload.eventType === 'INSERT') {
-            setMessages(prev => [...prev, payload.new]);
-          } else {
-            fetchData(); // Pour les updates/deletes
-          }
-        }
-      )
-      .on(
-        'postgres_changes' as any, // Correction ici aussi
-        { event: '*', table: 'leads', schema: 'public' }, 
-        () => fetchData()
-      )
+      .on('postgres_changes' as any, { event: '*', table: 'messages', schema: 'public' }, (payload: any) => {
+        if (payload.eventType === 'INSERT') setMessages(prev => [...prev, payload.new]);
+        else fetchData();
+      })
+      .on('postgres_changes' as any, { event: '*', table: 'leads', schema: 'public' }, () => fetchData())
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // 3. ACTIONS (SEND & LOGOUT)
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
     const { error } = await supabase.from('messages').insert([{ content: newMessage, sender_id: 'Admin' }]);
     if (!error) setNewMessage("");
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/login';
-  };
-
   const handleManualInject = async () => {
-    const { error } = await supabase.from('leads').insert([
-      { 
-        first_name: "Nouveau", 
-        last_name: "Prospect", 
-        phone: "06" + Math.floor(Math.random() * 90000000), 
-        status: "nouveau", 
-        agent_id: selectedAgent,
-        created_at: new Date().toISOString()
-      }
-    ]);
+    const { error } = await supabase.from('leads').insert([{ 
+      first_name: "Nouveau", last_name: "Prospect", 
+      phone: "06" + Math.floor(Math.random() * 90000000), 
+      status: "nouveau", agent_id: selectedAgent,
+      created_at: new Date().toISOString()
+    }]);
     if (!error) alert(`Lead injecté pour ${selectedAgent}`);
   };
 
   if (loading) return (
-    <div style={{ backgroundColor: '#020617', minHeight: '100vh', color: 'white' }} className="flex items-center justify-center">
-      <RefreshCcw className="animate-spin" size={40} />
+    <div className="h-screen bg-[#020617] flex items-center justify-center text-white">
+      <RefreshCcw className="animate-spin text-blue-500" size={40} />
     </div>
   );
 
   return (
-    <div style={{ backgroundColor: '#020617', minHeight: '100vh', color: 'white', padding: '30px', fontFamily: 'sans-serif' }}>
+    <div className="min-h-screen bg-[#020617] text-white p-8 font-sans">
       
-      {/* HEADER PREMIUM AVEC DÉCONNEXION */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', background: 'linear-gradient(90deg, #0f172a 0%, #1e293b 100%)', padding: '20px 30px', borderRadius: '15px', border: '1px solid #334155' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ backgroundColor: '#3b82f6', padding: '10px', borderRadius: '12px' }}><ShieldCheck size={24}/></div>
+      {/* HEADER PREMIUM */}
+      <header className="flex justify-between items-center mb-8 bg-[#0f172a] p-6 rounded-[2rem] border border-white/10">
+        <div className="flex items-center gap-4">
+          <div className="bg-blue-600 p-3 rounded-2xl shadow-lg shadow-blue-600/20"><ShieldCheck size={24}/></div>
           <div>
-            <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>SUPERVISEUR ELITE</h1>
-            <span style={{ fontSize: '12px', color: '#94a3b8' }}>Casablanca CRM v2.5</span>
+            <h1 className="text-xl font-black uppercase tracking-tighter">SUPERVISEUR ELITE</h1>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Casablanca CRM v2.5</p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '15px' }}>
-          <button onClick={() => window.location.href='/'} style={{ backgroundColor: '#334155', border: 'none', color: 'white', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Vue Agent</button>
-          <button onClick={handleLogout} style={{ backgroundColor: '#ef4444', border: 'none', color: 'white', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-            <LogOut size={18}/> DÉCONNEXION
+        <div className="flex gap-4">
+          <Link href="/" className="bg-slate-800 hover:bg-slate-700 px-6 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center gap-2">
+            <LayoutDashboard size={16}/> Vue Agent
+          </Link>
+          <button className="bg-rose-600 hover:bg-rose-500 px-6 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center gap-2">
+            <LogOut size={16}/> Déconnexion
           </button>
         </div>
-      </div>
+      </header>
 
       {/* STATS CARDS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '30px' }}>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         {[
-          { label: 'BASE TOTALE', val: stats.total, color: '#3b82f6', icon: <DbIcon size={20}/> },
-          { label: 'VENTES', val: stats.ventes, color: '#10b981', icon: <CheckCircle size={20}/> },
-          { label: 'RAPPELS', val: stats.rappels, color: '#f59e0b', icon: <Clock size={20}/> },
-          { label: 'NRP / PERDUS', val: stats.nrp, color: '#ef4444', icon: <Activity size={20}/> }
+          { label: 'BASE TOTALE', val: stats.total, color: 'border-blue-500', icon: <DbIcon size={20}/> },
+          { label: 'VENTES', val: stats.ventes, color: 'border-emerald-500', icon: <CheckCircle size={20}/> },
+          { label: 'RAPPELS', val: stats.rappels, color: 'border-amber-500', icon: <Clock size={20}/> },
+          { label: 'NRP / PERDUS', val: stats.nrp, color: 'border-rose-500', icon: <Activity size={20}/> }
         ].map((s, i) => (
-          <div key={i} style={{ backgroundColor: '#0f172a', padding: '25px', borderRadius: '18px', border: '1px solid #1e293b', borderBottom: `4px solid ${s.color}` }}>
-            <div style={{ color: '#94a3b8', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>{s.label} {s.icon}</div>
-            <div style={{ fontSize: '32px', fontWeight: '800', marginTop: '10px' }}>{s.val}</div>
+          <div key={i} className={`bg-[#0f172a] p-6 rounded-[2rem] border border-white/5 border-b-4 ${s.color}`}>
+            <div className="flex justify-between text-slate-500 text-[10px] font-black uppercase tracking-widest">
+              {s.label} {s.icon}
+            </div>
+            <div className="text-3xl font-black mt-2">{s.val}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '30px' }}>
-        
-        {/* COLONNE GAUCHE : LEADS & DISPATCH */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-          
-          <div style={{ backgroundColor: '#0f172a', padding: '30px', borderRadius: '20px', border: '1px solid #1e293b' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: 0, fontSize: '18px' }}><FileSpreadsheet color="#3b82f6"/> DISTRIBUTION AGENTS</h3>
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-end', marginTop: '20px' }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '8px' }}>AGENT DESTINATAIRE</label>
-                <select value={selectedAgent} onChange={(e) => setSelectedAgent(e.target.value)} style={{ width: '100%', padding: '14px', backgroundColor: '#020617', color: 'white', border: '1px solid #334155', borderRadius: '10px' }}>
+      <div className="grid grid-cols-12 gap-8">
+        {/* LEADS & DISPATCH */}
+        <div className="col-span-8 space-y-8">
+          <div className="bg-[#0f172a] p-8 rounded-[2.5rem] border border-white/10">
+            <h3 className="text-sm font-black uppercase tracking-widest text-blue-500 mb-6 flex items-center gap-2">
+              <FileSpreadsheet size={18}/> Distribution des Leads
+            </h3>
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <label className="text-[9px] font-black text-slate-500 uppercase ml-2 mb-2 block">Agent Destinataire</label>
+                <select value={selectedAgent} onChange={(e) => setSelectedAgent(e.target.value)} className="w-full p-4 bg-[#020617] border border-white/10 rounded-2xl outline-none focus:border-blue-500">
                   <option value="Agent_1">AGENT 1 (Ismael)</option>
                   <option value="Agent_2">AGENT 2 (Sara)</option>
                   <option value="Agent_3">AGENT 3 (Yassine)</option>
                 </select>
               </div>
-              <button onClick={handleManualInject} style={{ backgroundColor: '#2563eb', color: 'white', padding: '14px 30px', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Upload size={18}/> INJECTER LEAD
+              <button onClick={handleManualInject} className="bg-blue-600 hover:bg-blue-500 px-8 py-4 rounded-2xl font-black text-xs uppercase flex items-center gap-2 transition-all">
+                <Upload size={18}/> Injecter
               </button>
             </div>
           </div>
 
-          <div style={{ backgroundColor: '#0f172a', padding: '30px', borderRadius: '20px', border: '1px solid #1e293b' }}>
-            <h3 style={{ margin: '0 0 20px 0', fontSize: '18px' }}>PRODUCTION EN DIRECT</h3>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="bg-[#0f172a] p-8 rounded-[2.5rem] border border-white/10">
+            <h3 className="text-sm font-black uppercase tracking-widest mb-6">Production en Direct</h3>
+            <table className="w-full">
               <thead>
-                <tr style={{ textAlign: 'left', color: '#64748b', fontSize: '12px', borderBottom: '1px solid #1e293b' }}>
-                  <th style={{ padding: '15px' }}>AGENT</th>
-                  <th style={{ padding: '15px' }}>CLIENT</th>
-                  <th style={{ padding: '15px' }}>STATUT</th>
+                <tr className="text-left text-[10px] font-black text-slate-500 uppercase border-b border-white/5">
+                  <th className="pb-4">Agent</th>
+                  <th className="pb-4">Client</th>
+                  <th className="pb-4">Statut</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-white/5">
                 {leads.slice(0, 8).map((l, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #1e293b', fontSize: '14px' }}>
-                    <td style={{ padding: '15px', color: '#3b82f6', fontWeight: 'bold' }}>{l.agent_id}</td>
-                    <td style={{ padding: '15px' }}>{l.first_name} {l.last_name}</td>
-                    <td style={{ padding: '15px' }}>
-                      <span style={{ backgroundColor: l.status === 'vente' ? '#065f46' : '#1e293b', padding: '5px 12px', borderRadius: '20px', fontSize: '11px' }}>
-                        {l.status?.toUpperCase()}
+                  <tr key={i} className="text-sm">
+                    <td className="py-4 text-blue-400 font-bold">{l.agent_id}</td>
+                    <td className="py-4 font-medium">{l.first_name} {l.last_name}</td>
+                    <td className="py-4">
+                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${l.status === 'vente' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-slate-400'}`}>
+                        {l.status}
                       </span>
                     </td>
                   </tr>
@@ -175,42 +153,27 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* COLONNE DROITE : CHAT FONCTIONNEL */}
-        <div style={{ backgroundColor: '#0f172a', borderRadius: '25px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', height: '750px' }}>
-          <div style={{ padding: '25px', borderBottom: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '10px', height: '10px', backgroundColor: '#10b981', borderRadius: '50%' }}></div>
-              <h3 style={{ margin: 0, fontSize: '16px' }}>CHAT ÉQUIPE</h3>
-            </div>
+        {/* CHAT EQUIPE */}
+        <div className="col-span-4 bg-[#0f172a] rounded-[2.5rem] border border-white/10 flex flex-col h-[700px] overflow-hidden">
+          <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+            <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"/> Chat Équipe
+            </h3>
           </div>
-          
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', background: '#020617' }}>
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#020617]/50">
             {messages.map((m, i) => (
-              <div key={i} style={{ alignSelf: m.sender_id === 'Admin' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
-                <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '4px', textAlign: m.sender_id === 'Admin' ? 'right' : 'left' }}>{m.sender_id}</div>
-                <div style={{ 
-                  backgroundColor: m.sender_id === 'Admin' ? '#2563eb' : '#1e293b', 
-                  padding: '12px 18px', borderRadius: m.sender_id === 'Admin' ? '18px 18px 0 18px' : '18px 18px 18px 0',
-                  fontSize: '14px', border: m.sender_id === 'Admin' ? 'none' : '1px solid #334155'
-                }}>
+              <div key={i} className={`flex flex-col ${m.sender_id === 'Admin' ? 'items-end' : 'items-start'}`}>
+                <span className="text-[9px] font-black text-slate-500 uppercase mb-1">{m.sender_id}</span>
+                <div className={`p-4 rounded-2xl text-sm max-w-[90%] ${m.sender_id === 'Admin' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-slate-800 text-slate-200 rounded-tl-none'}`}>
                   {m.content}
                 </div>
               </div>
             ))}
           </div>
-
-          <div style={{ padding: '25px', borderTop: '1px solid #1e293b' }}>
-            <div style={{ display: 'flex', gap: '12px', backgroundColor: '#1e293b', padding: '8px', borderRadius: '15px' }}>
-              <input 
-                value={newMessage} 
-                onChange={(e) => setNewMessage(e.target.value)} 
-                onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder="Message aux agents..." 
-                style={{ flex: 1, padding: '12px', backgroundColor: 'transparent', border: 'none', color: 'white', outline: 'none' }} 
-              />
-              <button onClick={sendMessage} style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '10px', cursor: 'pointer' }}>
-                <Send size={18}/>
-              </button>
+          <div className="p-6 bg-white/5">
+            <div className="flex gap-2 bg-[#020617] p-2 rounded-2xl border border-white/10">
+              <input value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} placeholder="Message..." className="flex-1 bg-transparent p-2 outline-none text-sm" />
+              <button onClick={sendMessage} className="bg-blue-600 p-3 rounded-xl hover:bg-blue-500 transition-all"><Send size={18}/></button>
             </div>
           </div>
         </div>
@@ -218,5 +181,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-function Database({size}: {size: number}) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg> }
