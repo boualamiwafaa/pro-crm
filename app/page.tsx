@@ -5,7 +5,7 @@ import {
   Clock, CheckCircle, XCircle, User, 
   ShieldCheck, RefreshCw, LayoutDashboard, 
   Mail, MapPin, Cake, Coffee, Utensils, Play,
-  Hash, Send // CORRECTION : Ajout de Hash et Send ici
+  Hash, Send 
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Device } from '@twilio/voice-sdk';
@@ -34,6 +34,8 @@ export default function AgentPage() {
   // --- ÉTATS VOIP & MODALS ---
   const [callStatus, setCallStatus] = useState("Initialisation...");
   const [device, setDevice] = useState<Device | null>(null);
+  const [callActive, setCallActive] = useState(false); // État pour savoir si on est en ligne
+  const [currentCall, setCurrentCall] = useState<any>(null); // Stocker l'appel en cours
   const [showCalendar, setShowCalendar] = useState(false);
   const [rdvDate, setRdvDate] = useState("");
 
@@ -161,9 +163,27 @@ export default function AgentPage() {
     try {
       const cleanNumber = lead.phone.replace(/\s+/g, '');
       const call = await device.connect({ params: { To: cleanNumber } });
+      
+      setCallActive(true);
+      setCurrentCall(call);
       setCallStatus("En appel...");
-      call.on('disconnect', () => setCallStatus("Prêt"));
+
+      call.on('disconnect', () => {
+        setCallActive(false);
+        setCurrentCall(null);
+        setCallStatus("Prêt");
+      });
     } catch (err) {
+      setCallStatus("Erreur appel");
+      setCallActive(false);
+    }
+  };
+
+  const handleHangup = () => {
+    if (currentCall) {
+      currentCall.disconnect(); 
+      setCallActive(false);
+      setCurrentCall(null);
       setCallStatus("Prêt");
     }
   };
@@ -203,7 +223,7 @@ export default function AgentPage() {
         </div>
 
         <button onClick={() => setShowChat(!showChat)} className={`mt-4 p-3 rounded-xl flex items-center gap-3 text-[9px] font-black uppercase transition-all ${showChat ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-500'}`}>
-           <MessageSquare size={14} /> Chat Équipe
+            <MessageSquare size={14} /> Chat Équipe
         </button>
 
         <div className="mt-auto">
@@ -292,10 +312,12 @@ export default function AgentPage() {
                       <label className="text-[8px] text-slate-500 uppercase font-black mb-2 block tracking-widest">Adresse</label>
                       <input className="bg-transparent w-full font-bold outline-none text-white text-sm" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
                     </div>
-                    <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
-                      <label className="text-[8px] text-slate-500 uppercase font-black mb-2 block tracking-widest">CP</label>
-                      {/* CORRECTION UTILISÉE ICI : L'icône Hash fonctionne maintenant */}
-                      <input className="bg-transparent w-full font-bold outline-none text-white text-sm" value={formData.zip_code} onChange={e => setFormData({...formData, zip_code: e.target.value})} />
+                    <div className="bg-black/20 p-4 rounded-2xl border border-white/5 flex items-center gap-3">
+                      <div className="flex-1">
+                        <label className="text-[8px] text-slate-500 uppercase font-black mb-2 block tracking-widest">CP</label>
+                        <input className="bg-transparent w-full font-bold outline-none text-white text-sm" value={formData.zip_code} onChange={e => setFormData({...formData, zip_code: e.target.value})} />
+                      </div>
+                      <Hash size={16} className="text-slate-600 mt-4" />
                     </div>
                   </div>
                 </div>
@@ -314,18 +336,29 @@ export default function AgentPage() {
               </div>
 
               <div className="col-span-4 space-y-6">
-                <button 
-                  onClick={startCall}
-                  disabled={callStatus !== "Prêt"}
-                  className={`w-full py-10 rounded-[2rem] flex flex-col items-center justify-center gap-4 transition-all shadow-2xl ${
-                    callStatus === "Prêt" 
-                      ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30" 
-                      : "bg-slate-800 text-slate-600 cursor-not-allowed"
-                  }`}
-                >
-                  <Phone size={32} fill="currentColor" />
-                  <span className="font-black text-xs tracking-widest uppercase">Appeler Client</span>
-                </button>
+                {/* BOUTON DYNAMIQUE APPEL / RACCROCHER */}
+                {callActive ? (
+                  <button 
+                    onClick={handleHangup}
+                    className="w-full py-10 rounded-[2rem] flex flex-col items-center justify-center gap-4 transition-all shadow-2xl bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30 animate-pulse"
+                  >
+                    <Phone size={32} fill="currentColor" className="rotate-[135deg]" />
+                    <span className="font-black text-xs tracking-widest uppercase">Raccrocher</span>
+                  </button>
+                ) : (
+                  <button 
+                    onClick={startCall}
+                    disabled={callStatus !== "Prêt"}
+                    className={`w-full py-10 rounded-[2rem] flex flex-col items-center justify-center gap-4 transition-all shadow-2xl ${
+                      callStatus === "Prêt" 
+                        ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30" 
+                        : "bg-slate-800 text-slate-600 cursor-not-allowed"
+                    }`}
+                  >
+                    <Phone size={32} fill="currentColor" />
+                    <span className="font-black text-xs tracking-widest uppercase">Appeler Client</span>
+                  </button>
+                )}
 
                 <div className="flex flex-col gap-3">
                   <button onClick={() => handleUpdateLead('vente')} className="w-full py-5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3">

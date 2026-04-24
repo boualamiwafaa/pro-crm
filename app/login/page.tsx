@@ -1,6 +1,7 @@
 "use client";
 import Link from 'next/link';
 import { ShieldCheck, Lock, User } from 'lucide-react';
+import { supabase } from '@/lib/supabase'; // Obligatoire pour utiliser auth.resetPassword
 
 export default function LoginPage() {
   return (
@@ -36,10 +37,31 @@ export default function LoginPage() {
           <Link href="/" className="block w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-center text-xs uppercase tracking-widest transition-all shadow-xl shadow-blue-600/20 transform hover:-translate-y-1">
             Se Connecter
           </Link>
+          
+          {/* AJOUT DU BOUTON MOT DE PASSE OUBLIÉ */}
+          <div className="text-center mt-4">
+            <button 
+              onClick={async () => {
+                const email = prompt("Entrez votre adresse email pour la réinitialisation :");
+                if (email) {
+                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+                  });
+                  if (error) alert("Erreur : " + error.message);
+                  else alert("Email de réinitialisation envoyé ! Vérifiez votre boîte aux lettres.");
+                }
+              }}
+              className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-blue-500 transition-colors"
+            >
+              Mot de passe oublié ?
+            </button>
+          </div>
         </div>
 
         <div className="mt-10 text-center">
-          <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">Système de Surveillance Actif</p>
+          <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest text-emerald-500/80 flex items-center justify-center gap-2">
+            <ShieldCheck size={12} /> Système de Surveillance Actif
+          </p>
         </div>
       </div>
     </div>
