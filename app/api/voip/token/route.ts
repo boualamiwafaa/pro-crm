@@ -8,7 +8,7 @@ export async function GET() {
   try {
     // RÉCUPÉRATION SÉCURISÉE DES VARIABLES DEPUIS VERCEL
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const apiKeySid = process.env.TWILIO_API_KEY;
+    const apiKeySid = process.env.TWILIO_API_KEY_SID;
     const apiKeySecret = process.env.TWILIO_API_SECRET;
     const outgoingApplicationSid = process.env.TWILIO_TWIML_APP_SID;
 
