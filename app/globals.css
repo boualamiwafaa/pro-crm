@@ -9,10 +9,11 @@
 
 @layer base {
   body {
-  background-color: #020617;
-  color: #f8fafc;
-  overflow: hidden; /* Empêche le scroll sauvage sur tout le body */
-}
+    background-color: #020617;
+    color: #f8fafc;
+    overflow: hidden;
+  }
+} /* Cette accolade manquait ici et faisait tout planter ! */
 
 /* Scrollbar personnalisée style Luxe */
 ::-webkit-scrollbar {

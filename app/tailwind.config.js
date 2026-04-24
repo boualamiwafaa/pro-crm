@@ -9,13 +9,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Couleurs personnalisées pour ton CRM
         background: "#020617",
         foreground: "#f8fafc",
         primary: {
           DEFAULT: "#2563eb",
           hover: "#1d4ed8",
-        }
+        },
       },
     },
   },
