@@ -1,9 +1,9 @@
 "use client";
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
-  Phone, Calendar, MessageSquare, Save, LogOut, 
+  Phone, Calendar, MessageSquare, LogOut, 
   Clock, CheckCircle, XCircle, User, Hash, 
-  ShieldCheck, RefreshCw, ChevronRight, Search 
+  ShieldCheck, RefreshCw 
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Device } from '@twilio/voice-sdk';
@@ -20,6 +20,9 @@ export default function AgentPage() {
   const [device, setDevice] = useState<Device | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [rdvDate, setRdvDate] = useState("");
+
+  // Utilisation d'une Ref pour éviter les doubles initialisations avec React Strict Mode
+  const isInitialised = useRef(false);
 
   const fetchNextLead = useCallback(async () => {
     setLoading(true);
@@ -50,11 +53,18 @@ export default function AgentPage() {
     }
   }, []);
 
+  // --- LOGIQUE VOIP TWILIO (NETTOYÉE ET STABLE) ---
   useEffect(() => {
     let currentDevice: Device | null = null;
+
     const setupTwilio = async () => {
+      if (isInitialised.current) return;
+      isInitialised.current = true;
+
       try {
+        setCallStatus("Micro...");
         await navigator.mediaDevices.getUserMedia({ audio: true });
+
         const response = await fetch(`/api/voip/token?t=${Date.now()}`);
         const data = await response.json();
         
@@ -63,27 +73,45 @@ export default function AgentPage() {
           return;
         }
 
+        // Initialisation propre
         currentDevice = new Device(data.token.trim(), {
-          edge: ['ashburn', 'ie1'],
           logLevel: 'debug',
+          edge: ['ashburn', 'ie1'],
           tokenRefreshMs: 15000,
         });
 
-        currentDevice.on('registered', () => setCallStatus("Prêt"));
+        // Gestion des événements
+        currentDevice.on('registered', () => {
+          setCallStatus("Prêt");
+          console.log("Twilio : Prêt pour les appels");
+        });
+
         currentDevice.on('error', (error: any) => {
+          console.error('[Twilio SDK Error]', error.code, error.message);
           if (error.code !== 31005) setCallStatus(`Erreur ${error.code}`);
         });
 
         await currentDevice.register();
         setDevice(currentDevice);
+
       } catch (err: any) {
-        setCallStatus("Micro bloqué");
+        console.error("Setup Erreur:", err);
+        setCallStatus("Erreur Init");
       }
     };
 
     setupTwilio();
     fetchNextLead();
-    return () => { if (currentDevice) currentDevice.destroy(); };
+
+    // NETTOYAGE CRUCIAL (Anti-bug 53000 / 1006)
+    return () => {
+      if (currentDevice) {
+        currentDevice.removeAllListeners();
+        currentDevice.destroy();
+        isInitialised.current = false;
+        console.log("VoIP : Connexion libérée");
+      }
+    };
   }, [fetchNextLead]);
 
   const handleUpdateLead = async (newStatus: string) => {
@@ -113,19 +141,20 @@ export default function AgentPage() {
       setCallStatus("En appel...");
       call.on('disconnect', () => setCallStatus("Prêt"));
     } catch (err) {
+      console.error("Erreur Appel:", err);
       setCallStatus("Prêt");
     }
   };
 
   return (
     <div className="h-screen flex flex-col bg-[#020617] text-slate-200 overflow-hidden">
-      {/* HEADER COMPACT */}
+      {/* HEADER */}
       <header className="h-16 border-b border-white/5 bg-[#020617]/50 backdrop-blur-md flex items-center justify-between px-6 flex-shrink-0">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-white">E</div>
           <div>
             <h1 className="text-xs font-black tracking-widest uppercase text-white">PRO CRM MUTUELLE</h1>
-            <p className="text-[10px] text-slate-500 font-bold uppercase">Session Agent : Wafaa Boualami</p>
+            <p className="text-[10px] text-slate-500 font-bold uppercase">Agent : Wafaa Boualami</p>
           </div>
         </div>
 
@@ -143,10 +172,8 @@ export default function AgentPage() {
         </div>
       </header>
 
-      {/* DASHBOARD LAYOUT */}
       <div className="flex flex-1 overflow-hidden">
-        
-        {/* SIDEBAR GAUCHE : STATS */}
+        {/* SIDEBAR STATS */}
         <aside className="w-72 border-r border-white/5 bg-[#020617]/30 p-6 flex flex-col gap-6 overflow-y-auto">
           <section>
             <h3 className="text-[10px] font-black text-slate-500 mb-4 uppercase tracking-widest flex items-center gap-2">
@@ -163,92 +190,72 @@ export default function AgentPage() {
               </div>
             </div>
           </section>
-
-          <section className="mt-auto">
-             <div className="p-4 bg-blue-600/10 rounded-2xl border border-blue-500/20 text-center">
-                <p className="text-[10px] font-black text-blue-400 uppercase mb-2">Objectif Quotidien</p>
-                <div className="w-full bg-blue-900/30 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-blue-500 h-full w-[60%]"></div>
-                </div>
-                <p className="text-[10px] text-slate-400 mt-2 font-bold italic">60% complété</p>
-             </div>
-          </section>
         </aside>
 
-        {/* ZONE CENTRALE : FICHE CLIENT (LE FOCUS) */}
+        {/* ZONE CENTRALE CLIENT */}
         <main className="flex-1 bg-[#020617] p-8 overflow-y-auto flex flex-col items-center">
           {loading ? (
              <div className="m-auto flex flex-col items-center">
                 <RefreshCw className="animate-spin text-blue-600 mb-4" size={48} />
-                <span className="text-xs font-black tracking-widest text-slate-500">CHARGEMENT DU LEAD...</span>
+                <span className="text-xs font-black tracking-widest text-slate-500">SYNCHRONISATION...</span>
              </div>
           ) : lead ? (
             <div className="w-full max-w-4xl space-y-8">
-              {/* CARD PRINCIPALE CLIENT */}
-              <div className="bg-[#0f172a] rounded-[2.5rem] border border-white/10 p-10 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-5">
-                   <User size={120} />
-                </div>
-
-                <div className="relative z-10">
-                  <span className="bg-blue-600/10 text-blue-400 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-blue-500/20"> Prospect en attente </span>
-                  
-                  <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
-                    <div>
-                      <h2 className="text-5xl font-black text-white tracking-tight uppercase leading-none">
-                        {formData.first_name} <br/>
-                        <span className="text-blue-500">{formData.last_name}</span>
-                      </h2>
-                      <div className="flex items-center gap-3 mt-4 text-xl font-mono text-slate-400">
-                        <Phone size={20} className="text-blue-500" />
-                        {lead.phone}
-                      </div>
+              <div className="bg-[#0f172a] rounded-[2.5rem] border border-white/10 p-10 shadow-2xl relative">
+                <span className="bg-blue-600/10 text-blue-400 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-blue-500/20"> Fiche Active </span>
+                
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
+                  <div>
+                    <h2 className="text-5xl font-black text-white tracking-tight uppercase">
+                      {formData.first_name} <br/>
+                      <span className="text-blue-500">{formData.last_name}</span>
+                    </h2>
+                    <div className="flex items-center gap-3 mt-4 text-xl font-mono text-slate-400">
+                      <Phone size={20} className="text-blue-500" />
+                      {lead.phone}
                     </div>
+                  </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                       <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                          <label className="text-[8px] text-slate-500 uppercase font-black block mb-1">Prénom</label>
-                          <input className="bg-transparent w-full text-sm font-bold text-white outline-none" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} />
-                       </div>
-                       <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                          <label className="text-[8px] text-slate-500 uppercase font-black block mb-1">Nom</label>
-                          <input className="bg-transparent w-full text-sm font-bold text-white outline-none" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} />
-                       </div>
-                    </div>
+                  <div className="grid grid-cols-2 gap-3">
+                     <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                        <label className="text-[8px] text-slate-500 uppercase font-black block mb-1">Prénom</label>
+                        <input className="bg-transparent w-full text-sm font-bold text-white outline-none" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} />
+                     </div>
+                     <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                        <label className="text-[8px] text-slate-500 uppercase font-black block mb-1">Nom</label>
+                        <input className="bg-transparent w-full text-sm font-bold text-white outline-none" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} />
+                     </div>
                   </div>
                 </div>
 
-                {/* BOUTON APPEL GÉANT */}
                 <button 
                   onClick={startCall}
                   disabled={callStatus !== "Prêt"}
-                  className={`w-full mt-10 py-8 rounded-3xl text-xl font-black flex items-center justify-center gap-4 transition-all shadow-xl group ${
+                  className={`w-full mt-10 py-8 rounded-3xl text-xl font-black flex items-center justify-center gap-4 transition-all shadow-xl ${
                     callStatus === "Prêt" 
                       ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30" 
                       : "bg-slate-800 text-slate-600 cursor-not-allowed"
                   }`}
                 >
                   <Phone size={28} fill="currentColor" /> 
-                  {callStatus === "En appel..." ? "APPEL EN COURS" : "LANCER L'APPEL"}
+                  {callStatus === "En appel..." ? "COMMUNICATION EN COURS" : "LANCER L'APPEL"}
                 </button>
               </div>
 
-              {/* ACTIONS ET NOTES (CÔTE À CÔTE) */}
+              {/* ACTIONS */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* BLOC NOTES */}
                 <div className="bg-[#0f172a] rounded-[2rem] border border-white/10 p-6 flex flex-col gap-4">
                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                      <MessageSquare size={14} /> Observations Appel
+                      <MessageSquare size={14} /> Notes de l'agent
                    </h3>
                    <textarea 
                       className="flex-1 bg-black/20 border border-white/5 rounded-2xl p-4 text-sm outline-none focus:border-blue-500/40 resize-none min-h-[120px]"
-                      placeholder="Détails importants..."
+                      placeholder="Résultat de l'échange..."
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
                    />
                 </div>
 
-                {/* BLOC RÉSUMÉ APPEL */}
                 <div className="grid grid-cols-2 gap-4">
                   <button onClick={() => handleUpdateLead('vente')} className="flex flex-col items-center justify-center gap-3 rounded-3xl bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white transition-all font-black uppercase text-[10px]">
                     <CheckCircle size={32} /> Vente
@@ -257,7 +264,7 @@ export default function AgentPage() {
                     <Clock size={32} /> Rappel
                   </button>
                   <button onClick={() => handleUpdateLead('refus')} className="col-span-2 py-6 flex items-center justify-center gap-3 rounded-3xl bg-rose-500/5 border border-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white transition-all font-black uppercase text-[10px]">
-                    <XCircle size={24} /> Client non intéressé / Refus
+                    <XCircle size={24} /> Refus / Hors Cible
                   </button>
                 </div>
               </div>
@@ -265,8 +272,8 @@ export default function AgentPage() {
           ) : (
             <div className="m-auto text-center">
               <ShieldCheck size={64} className="text-blue-600 mx-auto mb-6" />
-              <h2 className="text-2xl font-black text-white uppercase">Session Terminée</h2>
-              <p className="text-slate-500 mt-2">Aucun nouveau lead disponible dans la base.</p>
+              <h2 className="text-2xl font-black text-white uppercase">Base de données vide</h2>
+              <p className="text-slate-500 mt-2">Plus de leads à traiter pour le moment.</p>
               <button onClick={fetchNextLead} className="mt-8 px-8 py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase hover:bg-white/10 transition-all"> Actualiser </button>
             </div>
           )}
@@ -278,12 +285,12 @@ export default function AgentPage() {
         <div className="fixed inset-0 bg-[#020617]/90 backdrop-blur-sm flex items-center justify-center z-[100] p-6">
           <div className="bg-[#0f172a] p-10 rounded-[2.5rem] border border-white/10 w-full max-w-md shadow-2xl">
             <h2 className="text-2xl font-black text-white uppercase mb-6 flex items-center gap-3">
-              <Calendar className="text-amber-500" /> Fixer Rappel
+              <Calendar className="text-amber-500" /> Date du Rappel
             </h2>
             <input type="datetime-local" className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl mb-6 text-white outline-none focus:border-amber-500 transition-all" value={rdvDate} onChange={(e) => setRdvDate(e.target.value)} />
             <div className="flex gap-4">
               <button onClick={() => setShowCalendar(false)} className="flex-1 py-4 rounded-xl bg-white/5 font-bold uppercase text-[10px]">Annuler</button>
-              <button onClick={() => { handleUpdateLead('rappel'); setShowCalendar(false); }} className="flex-1 py-4 rounded-xl bg-amber-500 text-black font-black uppercase text-[10px]">Confirmer</button>
+              <button onClick={() => { handleUpdateLead('rappel'); setShowCalendar(false); }} className="flex-1 py-4 rounded-xl bg-amber-500 text-black font-black uppercase text-[10px]">Enregistrer</button>
             </div>
           </div>
         </div>

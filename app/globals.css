@@ -9,10 +9,21 @@
 
 @layer base {
   body {
-    background-color: #020617;
-    color: #f8fafc;
-    margin: 0;
-  }
+  background-color: #020617;
+  color: #f8fafc;
+  overflow: hidden; /* Empêche le scroll sauvage sur tout le body */
+}
+
+/* Scrollbar personnalisée style Luxe */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
 }
 
 @layer components {
