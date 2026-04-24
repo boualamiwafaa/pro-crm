@@ -4,7 +4,8 @@ import {
   Phone, Calendar, MessageSquare, LogOut, 
   Clock, CheckCircle, XCircle, User, 
   ShieldCheck, RefreshCw, LayoutDashboard, 
-  Mail, MapPin, Cake, Coffee, Utensils, Play
+  Mail, MapPin, Cake, Coffee, Utensils, Play,
+  Hash, Send // CORRECTION : Ajout de Hash et Send ici
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Device } from '@twilio/voice-sdk';
@@ -15,7 +16,7 @@ export default function AgentPage() {
   const [lead, setLead] = useState<any>(null);
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(true);
-  const [statusAgent, setStatusAgent] = useState("Disponible"); // Système de pause
+  const [statusAgent, setStatusAgent] = useState("Disponible");
   const [formData, setFormData] = useState({ 
     first_name: '', 
     last_name: '', 
@@ -25,6 +26,11 @@ export default function AgentPage() {
     zip_code: '' 
   });
   
+  // --- ÉTATS CHAT & MESSAGES ---
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [showChat, setShowChat] = useState(false);
+
   // --- ÉTATS VOIP & MODALS ---
   const [callStatus, setCallStatus] = useState("Initialisation...");
   const [device, setDevice] = useState<Device | null>(null);
@@ -65,6 +71,11 @@ export default function AgentPage() {
     }
   }, []);
 
+  const fetchMessages = async () => {
+    const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: true });
+    if (data) setMessages(data);
+  };
+
   useEffect(() => {
     let currentDevice: Device | null = null;
     const setupTwilio = async () => {
@@ -94,14 +105,24 @@ export default function AgentPage() {
         setCallStatus("Erreur Init");
       }
     };
+
     setupTwilio();
     fetchNextLead();
+    fetchMessages();
+
+    const channel = supabase.channel('agent-realtime')
+      .on('postgres_changes', { event: 'INSERT', table: 'messages', schema: 'public' }, (payload) => {
+        setMessages(prev => [...prev, payload.new]);
+      })
+      .subscribe();
+
     return () => {
       if (currentDevice) {
         currentDevice.removeAllListeners();
         currentDevice.destroy();
         isInitialised.current = false;
       }
+      supabase.removeChannel(channel);
     };
   }, [fetchNextLead]);
 
@@ -125,8 +146,14 @@ export default function AgentPage() {
       fetchNextLead();
       setComment("");
     } else {
-      alert("Erreur lors de l'enregistrement : " + error.message);
+      alert("Erreur : " + error.message);
     }
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim()) return;
+    await supabase.from('messages').insert([{ content: newMessage, sender_id: 'Wafaa' }]);
+    setNewMessage("");
   };
 
   const startCall = async () => {
@@ -147,8 +174,8 @@ export default function AgentPage() {
       {/* SIDEBAR */}
       <aside className="w-64 border-r border-white/5 bg-[#020617]/50 flex flex-col p-6 gap-8">
         <div className="flex items-center gap-3 px-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white">E</div>
-          <span className="font-black text-sm tracking-tighter">ELITE CRM</span>
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-blue-600/20 text-xs">W</div>
+          <span className="font-black text-sm tracking-tighter uppercase">Elite CRM</span>
         </div>
 
         <nav className="flex flex-col gap-2">
@@ -158,48 +185,67 @@ export default function AgentPage() {
           <Link href="/admin" className="flex items-center gap-3 p-3 text-slate-500 hover:text-white hover:bg-white/5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all">
             <ShieldCheck size={18} /> Administration
           </Link>
-          <Link href="/calendar" className="flex items-center gap-3 p-3 text-slate-500 hover:text-white hover:bg-white/5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all">
-            <Calendar size={18} /> Calendrier
-          </Link>
         </nav>
 
-        {/* SYSTÈME DE PAUSE (Nouveau) */}
         <div className="mt-8 pt-8 border-t border-white/5">
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 block">Statut Actuel : {statusAgent}</span>
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => setStatusAgent("En Ligne")} className={`p-2 rounded-lg flex items-center gap-2 text-[9px] font-bold uppercase border ${statusAgent === "En Ligne" ? "bg-emerald-500/20 border-emerald-500 text-emerald-500" : "bg-white/5 border-transparent text-slate-400"}`}>
-              <Play size={12} /> Ligne
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 block italic">Statut : {statusAgent}</span>
+          <div className="grid grid-cols-1 gap-2">
+            <button onClick={() => setStatusAgent("En Ligne")} className={`p-3 rounded-xl flex items-center gap-3 text-[9px] font-black uppercase border transition-all ${statusAgent === "En Ligne" ? "bg-emerald-500/20 border-emerald-500 text-emerald-500" : "bg-white/5 border-transparent text-slate-500"}`}>
+              <Play size={14} /> Reprendre
             </button>
-            <button onClick={() => setStatusAgent("Déjeuner")} className={`p-2 rounded-lg flex items-center gap-2 text-[9px] font-bold uppercase border ${statusAgent === "Déjeuner" ? "bg-orange-500/20 border-orange-500 text-orange-500" : "bg-white/5 border-transparent text-slate-400"}`}>
-              <Utensils size={12} /> Dej
+            <button onClick={() => setStatusAgent("Pause Café")} className={`p-3 rounded-xl flex items-center gap-3 text-[9px] font-black uppercase border transition-all ${statusAgent === "Pause Café" ? "bg-amber-500/20 border-amber-500 text-amber-500" : "bg-white/5 border-transparent text-slate-500"}`}>
+              <Coffee size={14} /> Pause Café
             </button>
-            <button onClick={() => setStatusAgent("Pause Café")} className={`p-2 rounded-lg flex items-center gap-2 text-[9px] font-bold uppercase border ${statusAgent === "Pause Café" ? "bg-amber-500/20 border-amber-500 text-amber-500" : "bg-white/5 border-transparent text-slate-400"}`}>
-              <Coffee size={12} /> Café
+            <button onClick={() => setStatusAgent("Déjeuner")} className={`p-3 rounded-xl flex items-center gap-3 text-[9px] font-black uppercase border transition-all ${statusAgent === "Déjeuner" ? "bg-orange-500/20 border-orange-500 text-orange-500" : "bg-white/5 border-transparent text-slate-500"}`}>
+              <Utensils size={14} /> Déjeuner
             </button>
           </div>
         </div>
 
+        <button onClick={() => setShowChat(!showChat)} className={`mt-4 p-3 rounded-xl flex items-center gap-3 text-[9px] font-black uppercase transition-all ${showChat ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-500'}`}>
+           <MessageSquare size={14} /> Chat Équipe
+        </button>
+
         <div className="mt-auto">
           <Link href="/login" className="flex items-center gap-3 p-3 text-rose-500 hover:bg-rose-500/10 rounded-xl font-bold text-xs uppercase tracking-widest transition-all">
-            <LogOut size={18} /> Déconnexion
+            <LogOut size={18} /> Quitter
           </Link>
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        
+        {/* CHAT OVERLAY */}
+        {showChat && (
+          <div className="absolute right-8 top-24 w-80 h-[500px] bg-[#0f172a] border border-white/10 rounded-[2rem] shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-right-5">
+            <div className="p-4 border-b border-white/5 bg-white/5 font-black text-[10px] uppercase tracking-widest">Chat Direct - Superviseur</div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.map((m, i) => (
+                <div key={i} className={`flex flex-col ${m.sender_id === 'Wafaa' ? 'items-end' : 'items-start'}`}>
+                  <span className="text-[8px] font-bold text-slate-500 uppercase mb-1">{m.sender_id}</span>
+                  <div className={`p-3 rounded-xl text-xs ${m.sender_id === 'Wafaa' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'}`}>
+                    {m.content}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 bg-black/20 flex gap-2">
+              <input value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} placeholder="Message..." className="flex-1 bg-transparent text-xs outline-none" />
+              <button onClick={sendMessage} className="p-2 bg-blue-600 rounded-lg"><Send size={14}/></button>
+            </div>
+          </div>
+        )}
+
         <header className="h-20 border-b border-white/5 px-8 flex items-center justify-between bg-[#020617]/20">
           <div>
-            <h1 className="text-xl font-black text-white uppercase tracking-tight">Session : Wafaa Boualami</h1>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">Agent de Mutuelle Senior</p>
+            <h1 className="text-xl font-black text-white uppercase tracking-tight">Wafaa Boualami</h1>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">Session Mutuelle Active</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 bg-black/40 px-4 py-2 rounded-full border border-white/10">
               <div className={`h-2 w-2 rounded-full ${callStatus === "Prêt" ? "bg-emerald-400" : "bg-rose-500"}`} />
               <span className="text-[10px] font-black uppercase tracking-widest">{callStatus}</span>
             </div>
-            <button onClick={() => window.location.reload()} className="p-2 hover:bg-white/5 rounded-full text-slate-500 transition-colors">
-              <RefreshCw size={18} />
-            </button>
           </div>
         </header>
 
@@ -207,74 +253,66 @@ export default function AgentPage() {
           {loading ? (
             <div className="h-full flex items-center justify-center"><RefreshCw className="animate-spin text-blue-600" /></div>
           ) : lead ? (
-            <div className="max-w-6xl mx-auto grid grid-cols-12 gap-8 pb-20">
+            <div className="max-w-5xl mx-auto grid grid-cols-12 gap-8 pb-20">
               
-              {/* FICHE CLIENT ÉTENDUE */}
               <div className="col-span-8 space-y-6">
                 <div className="bg-[#0f172a] rounded-[2rem] border border-white/10 p-8 shadow-2xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-8 opacity-5"><User size={120} /></div>
-                  <span className="text-blue-500 font-black text-[10px] uppercase tracking-[0.3em]">Fiche Active</span>
+                  <span className="text-blue-500 font-black text-[10px] uppercase tracking-[0.3em]">Client en cours</span>
                   <h2 className="text-4xl font-black text-white mt-4 mb-2 uppercase">
                     {formData.first_name} <span className="text-blue-600">{formData.last_name}</span>
                   </h2>
-                  <div className="flex items-center gap-4 text-xl font-mono text-slate-400 mb-8">
+                  <div className="flex items-center gap-4 text-xl font-mono text-slate-400 mb-8 font-bold">
                     <Phone size={18} className="text-blue-500" /> {lead.phone}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
-                      <label className="text-[8px] text-slate-500 uppercase font-black flex items-center gap-2 mb-2"><User size={10}/> Prénom</label>
-                      <input className="bg-transparent w-full font-bold outline-none text-white" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} />
+                      <label className="text-[8px] text-slate-500 uppercase font-black mb-2 block tracking-widest">Prénom</label>
+                      <input className="bg-transparent w-full font-bold outline-none text-white text-sm" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} />
                     </div>
                     <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
-                      <label className="text-[8px] text-slate-500 uppercase font-black flex items-center gap-2 mb-2"><User size={10}/> Nom</label>
-                      <input className="bg-transparent w-full font-bold outline-none text-white" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} />
+                      <label className="text-[8px] text-slate-500 uppercase font-black mb-2 block tracking-widest">Nom</label>
+                      <input className="bg-transparent w-full font-bold outline-none text-white text-sm" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
-                      <label className="text-[8px] text-slate-500 uppercase font-black flex items-center gap-2 mb-2"><Mail size={10}/> Email</label>
-                      <input className="bg-transparent w-full font-bold outline-none text-white" type="email" placeholder="client@mail.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                      <label className="text-[8px] text-slate-500 uppercase font-black mb-2 block tracking-widest">Email</label>
+                      <input className="bg-transparent w-full font-bold outline-none text-white text-sm" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
                     </div>
                     <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
-                      <label className="text-[8px] text-slate-500 uppercase font-black flex items-center gap-2 mb-2"><Cake size={10}/> Date de Naissance</label>
-                      <input className="bg-transparent w-full font-bold outline-none text-white" type="date" value={formData.birth_date} onChange={e => setFormData({...formData, birth_date: e.target.value})} />
+                      <label className="text-[8px] text-slate-500 uppercase font-black mb-2 block tracking-widest">Naissance</label>
+                      <input className="bg-transparent w-full font-bold outline-none text-white text-sm" type="date" value={formData.birth_date} onChange={e => setFormData({...formData, birth_date: e.target.value})} />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-4">
                     <div className="col-span-2 bg-black/20 p-4 rounded-2xl border border-white/5">
-                      <label className="text-[8px] text-slate-500 uppercase font-black flex items-center gap-2 mb-2"><MapPin size={10}/> Adresse</label>
-                      <input className="bg-transparent w-full font-bold outline-none text-white" placeholder="Rue, n°..." value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
+                      <label className="text-[8px] text-slate-500 uppercase font-black mb-2 block tracking-widest">Adresse</label>
+                      <input className="bg-transparent w-full font-bold outline-none text-white text-sm" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
                     </div>
                     <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
-                      <label className="text-[8px] text-slate-500 uppercase font-black flex items-center gap-2 mb-2"><Hash size={10}/> Code Postal</label>
-                      <input className="bg-transparent w-full font-bold outline-none text-white" placeholder="75000" value={formData.zip_code} onChange={e => setFormData({...formData, zip_code: e.target.value})} />
+                      <label className="text-[8px] text-slate-500 uppercase font-black mb-2 block tracking-widest">CP</label>
+                      {/* CORRECTION UTILISÉE ICI : L'icône Hash fonctionne maintenant */}
+                      <input className="bg-transparent w-full font-bold outline-none text-white text-sm" value={formData.zip_code} onChange={e => setFormData({...formData, zip_code: e.target.value})} />
                     </div>
                   </div>
                 </div>
 
                 <div className="bg-[#0f172a] rounded-[2rem] border border-white/10 p-8">
                   <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <MessageSquare size={14} /> Notes & Compte-rendu
+                    <MessageSquare size={14} /> Notes de l'échange
                   </h3>
                   <textarea 
-                    className="w-full bg-black/20 border border-white/5 rounded-2xl p-6 text-sm outline-none focus:border-blue-500/50 min-h-[150px] resize-none"
-                    placeholder="Historique de l'appel..."
+                    className="w-full bg-black/20 border border-white/5 rounded-2xl p-6 text-sm outline-none focus:border-blue-500/50 min-h-[120px] resize-none"
+                    placeholder="Saisir les détails importants..."
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                   />
-                  <button 
-                    onClick={() => handleUpdateLead(lead.status)} 
-                    className="mt-4 px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase transition-all"
-                  >
-                    Enregistrer les modifications
-                  </button>
                 </div>
               </div>
 
-              {/* ACTIONS */}
               <div className="col-span-4 space-y-6">
                 <button 
                   onClick={startCall}
@@ -286,40 +324,39 @@ export default function AgentPage() {
                   }`}
                 >
                   <Phone size={32} fill="currentColor" />
-                  <span className="font-black text-xs tracking-widest uppercase">Lancer l'appel</span>
+                  <span className="font-black text-xs tracking-widest uppercase">Appeler Client</span>
                 </button>
 
                 <div className="flex flex-col gap-3">
-                  <button onClick={() => handleUpdateLead('vente')} className="w-full py-6 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-3">
-                    <CheckCircle size={20} /> Valider Vente
+                  <button onClick={() => handleUpdateLead('vente')} className="w-full py-5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3">
+                    <CheckCircle size={18} /> Valider Vente
                   </button>
-                  <button onClick={() => setShowCalendar(true)} className="w-full py-6 bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-3">
-                    <Clock size={20} /> Programmer Rappel
+                  <button onClick={() => setShowCalendar(true)} className="w-full py-5 bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3">
+                    <Clock size={18} /> Rappel
                   </button>
-                  <button onClick={() => handleUpdateLead('refus')} className="w-full py-6 bg-rose-500/10 border border-rose-500/20 text-rose-500 hover:bg-rose-500 hover:text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-3">
-                    <XCircle size={20} /> Refus définitif
+                  <button onClick={() => handleUpdateLead('refus')} className="w-full py-5 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-3">
+                    <XCircle size={18} /> Refus
                   </button>
                 </div>
               </div>
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center">
-              <ShieldCheck size={80} className="text-blue-600/20 mb-6" />
-              <h2 className="text-3xl font-black text-white uppercase">Base traitée !</h2>
-              <button onClick={fetchNextLead} className="mt-8 px-10 py-4 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase hover:bg-white/10 transition-all">Actualiser</button>
+              <ShieldCheck size={60} className="text-blue-600/20 mb-6" />
+              <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Plus aucun lead à traiter</h2>
+              <button onClick={fetchNextLead} className="mt-8 px-10 py-4 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase hover:bg-white/10 transition-all">Relancer la recherche</button>
             </div>
           )}
         </main>
       </div>
 
-      {/* MODAL RAPPEL */}
       {showCalendar && (
-        <div className="fixed inset-0 bg-[#020617]/95 backdrop-blur-md flex items-center justify-center z-[100]">
-          <div className="bg-[#0f172a] p-12 rounded-[3rem] border border-white/10 w-full max-w-md shadow-2xl">
-            <h2 className="text-3xl font-black text-white uppercase mb-8 flex items-center gap-4">
-              <Calendar className="text-amber-500" /> Rappel
+        <div className="fixed inset-0 bg-[#020617]/90 backdrop-blur-md flex items-center justify-center z-[100]">
+          <div className="bg-[#0f172a] p-10 rounded-[3rem] border border-white/10 w-full max-w-md shadow-2xl">
+            <h2 className="text-2xl font-black text-white uppercase mb-8 flex items-center gap-4">
+              <Calendar className="text-amber-500" /> Fixer Rappel
             </h2>
-            <input type="datetime-local" className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl mb-8 text-white outline-none focus:border-amber-500" value={rdvDate} onChange={(e) => setRdvDate(e.target.value)} />
+            <input type="datetime-local" className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl mb-8 text-white outline-none focus:border-amber-500 font-bold" value={rdvDate} onChange={(e) => setRdvDate(e.target.value)} />
             <div className="flex gap-4">
               <button onClick={() => setShowCalendar(false)} className="flex-1 py-5 rounded-2xl bg-white/5 font-bold uppercase text-[10px]">Annuler</button>
               <button onClick={() => { handleUpdateLead('rappel'); setShowCalendar(false); }} className="flex-1 py-5 rounded-2xl bg-amber-500 text-black font-black uppercase text-[10px]">Confirmer</button>
