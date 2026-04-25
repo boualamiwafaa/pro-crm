@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  Users, LogOut, Send, MessageCircle, ShieldCheck, UserPlus, 
+  Users, LogOut, Send, ShieldCheck, UserPlus, 
   CheckCircle, Clock, Activity, Database as DbIcon, Upload, RefreshCcw, FileSpreadsheet, LayoutDashboard, Search, History
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -19,11 +19,11 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Utilisation de useCallback pour éviter les boucles infinies
   const fetchData = useCallback(async () => {
     try {
-      const { data: l, error: errL } = await supabase.from('leads').select('*').order('updated_at', { ascending: false });
-      const { data: m, error: errM } = await supabase.from('messages').select('*').order('created_at', { ascending: true });
+      // On récupère les données sans bloquer si une colonne manque
+      const { data: l } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
+      const { data: m } = await supabase.from('messages').select('*').order('created_at', { ascending: true });
       
       if (l) {
         setLeads(l);
@@ -31,12 +31,12 @@ export default function AdminDashboard() {
           total: l.length || 0,
           ventes: l.filter(x => x.status === 'vente').length || 0,
           rappels: l.filter(x => x.status === 'rappel').length || 0,
-          nrp: l.filter(x => x.status === 'nrp' || x.status === 'refus').length || 0
+          nrp: l.filter(x => x.status === 'nrp' || x.status === 'refus' || x.status === 'nrp').length || 0
         });
       }
       if (m) setMessages(m);
     } catch (error) {
-      console.error("Erreur:", error);
+      console.error("Erreur de chargement:", error);
     } finally {
       setLoading(false);
     }
@@ -44,20 +44,13 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchData();
-    const channel = supabase.channel('admin-realtime-v3')
-      .on('postgres_changes' as any, { event: '*', table: 'messages', schema: 'public' }, () => fetchData())
-      .on('postgres_changes' as any, { event: '*', table: 'leads', schema: 'public' }, () => fetchData())
-      .subscribe();
-    
+    const channel = supabase.channel('admin-v4').on('postgres_changes' as any, { event: '*', table: '*', schema: 'public' }, () => fetchData()).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [fetchData]);
 
-  // DECONNEXION RADICALE
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    localStorage.clear(); // Nettoie les sessions locales
-    router.push('/login'); // Force le retour à la page de connexion
-    router.refresh();
+    router.push('/');
   };
 
   const handleFileUpload = (e: any) => {
@@ -81,13 +74,24 @@ export default function AdminDashboard() {
       }));
 
       const { error } = await supabase.from('leads').insert(formattedData);
-      if (error) alert("Erreur: " + error.message);
+      if (error) alert("Erreur Supabase: " + error.message);
       else {
-        alert(`${formattedData.length} leads importés !`);
+        alert(`${formattedData.length} leads importés avec succès !`);
         fetchData();
       }
     };
     reader.readAsBinaryString(file);
+  };
+
+  const handleManualInject = async () => {
+    const { error } = await supabase.from('leads').insert([{ 
+      first_name: "Test", last_name: "Prospect", 
+      phone: "06" + Math.floor(10000000 + Math.random() * 90000000), 
+      status: "nouveau", agent_id: selectedAgent,
+      zip_code: "75000", notes: "Test manuel"
+    }]);
+    if (error) alert("Erreur d'injection: " + error.message);
+    else fetchData();
   };
 
   const sendMessage = async () => {
@@ -102,7 +106,7 @@ export default function AdminDashboard() {
   );
 
   if (loading) return (
-    <div className="h-screen bg-[#020617] flex items-center justify-center">
+    <div className="h-screen bg-[#020617] flex items-center justify-center text-white">
       <RefreshCcw className="animate-spin text-blue-500" size={40} />
     </div>
   );
@@ -118,7 +122,7 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="flex gap-4">
-          <Link href="/" className="bg-slate-800 hover:bg-slate-700 px-6 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center gap-2">
+          <Link href="/" className="bg-slate-800 hover:bg-slate-700 px-6 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center gap-2 border border-white/5">
             <LayoutDashboard size={16}/> Vue Agent
           </Link>
           <button onClick={handleLogout} className="bg-rose-600/20 text-rose-500 hover:bg-rose-600 hover:text-white px-6 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center gap-2 border border-rose-500/20">
@@ -136,9 +140,7 @@ export default function AdminDashboard() {
           { label: 'REFUS / NRP', val: stats.nrp, color: 'border-rose-500', icon: <Activity size={20}/> }
         ].map((s, i) => (
           <div key={i} className={`bg-[#0f172a] p-6 rounded-[2rem] border border-white/5 border-b-4 ${s.color}`}>
-            <div className="flex justify-between text-slate-500 text-[10px] font-black uppercase">
-              {s.label} {s.icon}
-            </div>
+            <div className="flex justify-between text-slate-500 text-[10px] font-black uppercase">{s.label} {s.icon}</div>
             <div className="text-3xl font-black mt-2">{s.val}</div>
           </div>
         ))}
@@ -150,7 +152,7 @@ export default function AdminDashboard() {
             <h3 className="text-sm font-black uppercase tracking-widest text-blue-500 mb-6 flex items-center gap-2">
               <FileSpreadsheet size={18}/> Gestion & Import
             </h3>
-            <div className="flex flex-col md:flex-row gap-6 items-end">
+            <div className="flex flex-col md:flex-row gap-6 mb-6">
               <div className="flex-1 w-full">
                 <label className="text-[9px] font-black text-slate-500 uppercase ml-2 mb-2 block">Assigner à</label>
                 <select value={selectedAgent} onChange={(e) => setSelectedAgent(e.target.value)} className="w-full p-4 bg-[#020617] border border-white/10 rounded-2xl text-sm font-bold outline-none">
@@ -159,13 +161,17 @@ export default function AdminDashboard() {
                   <option value="Agent_2">Agent 2 (Sara)</option>
                 </select>
               </div>
-              <div className="flex-1 w-full">
+              <div className="flex-1 w-full flex flex-col gap-2">
+                <label className="text-[9px] font-black text-slate-500 uppercase ml-2 block opacity-0">Actions</label>
                 <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="hidden" id="fileImport" />
                 <label htmlFor="fileImport" className="cursor-pointer flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase transition-all shadow-lg">
-                  <Upload size={18} /> Choisir le fichier Excel
+                  <Upload size={18} /> Import Excel
                 </label>
               </div>
             </div>
+            <button onClick={handleManualInject} className="w-full bg-blue-600/10 text-blue-500 border border-blue-500/20 hover:bg-blue-600 hover:text-white py-4 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 transition-all">
+              <UserPlus size={18}/> Injecter un Prospect de Test
+            </button>
           </div>
 
           <div className="bg-[#0f172a] p-8 rounded-[2.5rem] border border-white/10 shadow-2xl">
@@ -175,7 +181,7 @@ export default function AdminDashboard() {
               </h3>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14}/>
-                <input type="text" placeholder="Filtrer..." className="bg-[#020617] border border-white/5 rounded-full py-2 pl-10 pr-4 text-xs outline-none focus:border-blue-500 w-48 md:w-64" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <input type="text" placeholder="Rechercher..." className="bg-[#020617] border border-white/5 rounded-full py-2 pl-10 pr-4 text-xs outline-none focus:border-blue-500 w-48 md:w-64" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
             </div>
             <div className="overflow-x-auto max-h-[400px] overflow-y-auto custom-scrollbar">
@@ -192,11 +198,10 @@ export default function AdminDashboard() {
                     <tr key={i} className="text-sm hover:bg-white/5">
                       <td className="py-4 text-blue-400 font-bold">{l.agent_id}</td>
                       <td className="py-4 uppercase">{l.first_name} {l.last_name}</td>
-                      <td className="py-4">
-                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
-                          l.status === 'vente' ? 'bg-emerald-500/20 text-emerald-400' : 
-                          l.status === 'rappel' ? 'bg-amber-500/20 text-amber-400' : 'bg-white/5 text-slate-400'
-                        }`}>{l.status}</span>
+                      <td className="py-4 font-black uppercase text-[10px]">
+                        <span className={l.status === 'vente' ? 'text-emerald-400' : l.status === 'rappel' ? 'text-amber-400' : 'text-slate-500'}>
+                          {l.status}
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -206,9 +211,10 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="lg:col-span-4 flex flex-col h-[700px] bg-[#0f172a] rounded-[2.5rem] border border-white/10 overflow-hidden">
-          <div className="p-6 border-b border-white/5 bg-white/5">
-            <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">Chat Superviseur</h3>
+        <div className="lg:col-span-4 flex flex-col h-[700px] bg-[#0f172a] rounded-[2.5rem] border border-white/10 shadow-2xl">
+          <div className="p-6 border-b border-white/5 flex items-center gap-2">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"/>
+            <h3 className="text-xs font-black uppercase tracking-widest">Chat Superviseur</h3>
           </div>
           <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#020617]/50">
             {messages.map((m, i) => (
@@ -220,12 +226,10 @@ export default function AdminDashboard() {
               </div>
             ))}
           </div>
-          <div className="p-6 border-t border-white/5">
+          <div className="p-6">
             <div className="flex gap-2 bg-[#020617] p-2 rounded-2xl border border-white/10">
               <input value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} placeholder="Message..." className="flex-1 bg-transparent p-2 outline-none text-sm" />
-              <button onClick={sendMessage} className="bg-blue-600 p-3 rounded-xl hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20">
-                <Send size={18}/>
-              </button>
+              <button onClick={sendMessage} className="bg-blue-600 p-3 rounded-xl"><Send size={18}/></button>
             </div>
           </div>
         </div>
