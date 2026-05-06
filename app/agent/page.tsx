@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { 
@@ -99,6 +100,12 @@ export default function AgentPage() {
   const [loading, setLoading] = useState(true);
   const [device, setDevice] = useState<any>(null);
   const [presenceStatus, setPresenceStatus] = useState("disponible");
+
+  // --- IA (GEMINI) ---
+  const [selectedProduct, setSelectedProduct] = useState<string>('');
+  const [aiScript, setAiScript] = useState<string>('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string>('');
 
   const [formData, setFormData] = useState({
     first_name: '', last_name: '', phone: '', email: '',
@@ -304,6 +311,62 @@ export default function AgentPage() {
     setNewMessage("");
   };
 
+  const generateAiScript = async (clientFirstName?: string, produit?: string, notes?: string) => {
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!apiKey) {
+      setAiError("Clé Gemini manquante : définissez NEXT_PUBLIC_GEMINI_API_KEY dans votre environnement.");
+      return;
+    }
+
+    const prenom = (clientFirstName || '').trim();
+    const product = (produit || '').trim();
+    const commercialNotes = (notes || '').trim();
+
+    if (!prenom || !product) {
+      setAiError("Renseignez au minimum le prénom du client et le produit/service.");
+      return;
+    }
+
+    setAiLoading(true);
+    setAiError('');
+    setAiScript('');
+
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+      const prompt = `
+Tu es un coach commercial senior de Casablanca Elite Services.
+Objectif : aider un agent à convaincre le client avec un ton professionnel, chaleureux et premium.
+
+Contexte :
+- Prénom du client : ${prenom}
+- Produit / service : ${product}
+- Notes commerciales : ${commercialNotes || "Aucune note fournie"}
+
+Instructions :
+- Réponds en français.
+- Donne un script prêt à dire au téléphone (style conversation).
+- Structure :
+  1) Accroche + personnalisation
+  2) 2 questions de découverte (courtes)
+  3) Proposition de valeur (3 bénéfices concrets)
+  4) 2 réponses à objections courantes (prix, besoin/temps)
+  5) Closing (prochaine étape claire + prise de rendez-vous)
+- Reste concis, impactant, sans blabla.
+`.trim();
+
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      setAiScript(text.trim());
+    } catch (e: any) {
+      console.error(e);
+      setAiError("Impossible de générer le script pour le moment. Réessayez dans quelques secondes.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   if (loading) return <div className="h-screen bg-slate-950 flex items-center justify-center text-cyan-500 font-black animate-pulse uppercase tracking-[0.5em]">PRO-CRM : CHARGEMENT...</div>;
 
   return (
@@ -428,6 +491,108 @@ export default function AgentPage() {
                     <textarea value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} className={`w-full rounded-3xl p-6 h-40 text-xs outline-none focus:border-cyan-500 resize-none shadow-inner transition-colors ${darkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`} />
                   </div>
                   <button onClick={() => handleUpdateLead()} className="w-full mt-6 bg-cyan-600 hover:bg-cyan-500 text-white font-black py-5 rounded-2xl shadow-lg uppercase text-xs tracking-widest">Enregistrer la fiche</button>
+                </div>
+
+                {/* ASSISTANT IA ✨ */}
+                <div className={`rounded-[3rem] p-8 border shadow-2xl transition-colors ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+                  <div className="flex items-center justify-between gap-4 mb-6">
+                    <div>
+                      <h3 className="text-xl font-black uppercase tracking-widest text-cyan-500">Assistant IA ✨</h3>
+                      <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'} text-[11px] font-bold mt-1`}>
+                        Génère un script personnalisé (style coach) pour aider à convaincre le client.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cleanLead = normalizeLeadData(currentLead);
+                        generateAiScript(cleanLead.first_name, selectedProduct, formData.notes);
+                      }}
+                      disabled={aiLoading}
+                      className={`shrink-0 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg
+                        ${aiLoading ? 'bg-slate-700 text-slate-300 cursor-not-allowed' : 'bg-cyan-600 hover:bg-cyan-500 text-white'}
+                      `}
+                    >
+                      ✨ Générer Script IA
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    <div className="lg:col-span-5 space-y-3">
+                      <div className="space-y-1">
+                        <label className={`text-[9px] font-black uppercase ml-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Prénom client</label>
+                        <input
+                          value={normalizeLeadData(currentLead).first_name || ''}
+                          readOnly
+                          className={`w-full border p-4 rounded-2xl text-sm outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className={`text-[9px] font-black uppercase ml-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Produit / service</label>
+                        <input
+                          value={selectedProduct}
+                          onChange={(e) => setSelectedProduct(e.target.value)}
+                          placeholder="Ex: Abonnement premium, Conciergerie, Service VIP..."
+                          className={`w-full border p-4 rounded-2xl text-sm outline-none focus:border-cyan-500 transition-all ${darkMode ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'}`}
+                        />
+                      </div>
+
+                      <p className={`${darkMode ? 'text-slate-500' : 'text-slate-400'} text-[10px] font-bold leading-relaxed`}>
+                        Astuce : indiquez le produit exact + un objectif client (ex: “rendez-vous”, “devis”, “inscription”).
+                      </p>
+                    </div>
+
+                    <div className="lg:col-span-7">
+                      {aiError ? (
+                        <div className="rounded-3xl border border-rose-500/30 bg-rose-500/10 p-6">
+                          <p className="text-rose-400 text-xs font-black uppercase tracking-widest">Erreur IA</p>
+                          <p className="text-rose-200 text-sm font-bold mt-2">{aiError}</p>
+                        </div>
+                      ) : aiLoading ? (
+                        <div className={`rounded-3xl border p-6 ${darkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                          <p className="text-xs font-black uppercase tracking-widest text-cyan-500">Préparation du script…</p>
+                          <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'} text-sm font-bold mt-2`}>
+                            L’assistant construit une proposition adaptée à Casablanca Elite Services.
+                          </p>
+                        </div>
+                      ) : aiScript ? (
+                        <div className={`rounded-3xl border p-6 relative overflow-hidden ${darkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                          <div className="absolute inset-0 pointer-events-none opacity-40" style={{ background: 'radial-gradient(circle at top left, rgba(34,211,238,0.25), transparent 55%)' }} />
+                          <div className="relative">
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Conseil de coach</p>
+                                <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'} text-[11px] font-bold`}>
+                                  Script prêt à utiliser (personnalisé).
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => navigator.clipboard?.writeText(aiScript)}
+                                className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${darkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+                              >
+                                Copier
+                              </button>
+                            </div>
+
+                            <div className="border-l-4 border-cyan-500 pl-4">
+                              <pre className={`whitespace-pre-wrap text-sm font-semibold leading-relaxed ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                                {aiScript}
+                              </pre>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className={`rounded-3xl border p-6 ${darkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                          <p className="text-xs font-black uppercase tracking-widest text-slate-500">Prêt</p>
+                          <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'} text-sm font-bold mt-2`}>
+                            Sélectionnez un produit/service puis cliquez sur “Générer Script IA”.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
