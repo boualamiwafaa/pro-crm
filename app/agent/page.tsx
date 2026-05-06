@@ -316,13 +316,18 @@ export default function AgentPage() {
   const generateAiScript = async (clientFirstName?: string, produit?: string, notes?: string) => {
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
+      console.error(
+        "[Gemini] Clé API absente : ajoutez NEXT_PUBLIC_GEMINI_API_KEY dans .env.local (racine du projet), puis redémarrez npm run dev."
+      );
       setAiError("Clé Gemini manquante : définissez NEXT_PUBLIC_GEMINI_API_KEY dans votre environnement.");
       return;
     }
 
-    const prenom = (clientFirstName || '').trim();
+    const firstName = (clientFirstName || '').trim();
     const product = (produit || '').trim();
     const commercialNotes = (notes || '').trim();
+
+    console.log("Données envoyées à l'IA:", { firstName, product });
 
     if (!product) {
       setAiError("Veuillez sélectionner un produit pour ce lead.");
@@ -334,15 +339,15 @@ export default function AgentPage() {
     setAiScript('');
 
     try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+      const genAI = new GoogleGenerativeAI(apiKey as string);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
       const prompt = `
 Tu es un coach commercial senior de Casablanca Elite Services.
 Objectif : aider un agent à convaincre le client avec un ton professionnel, chaleureux et premium.
 
 Contexte :
-- Prénom du client : ${prenom}
+- Prénom du client : ${firstName}
 - Produit / service : ${product}
 - Notes commerciales : ${commercialNotes || "Aucune note fournie"}
 
@@ -358,6 +363,7 @@ Instructions :
 - Reste concis, impactant, sans blabla.
 `.trim();
 
+      console.log('Connexion établie avec Gemini 2.5 Flash...');
       const result = await model.generateContent(prompt);
       const text = result.response.text();
       setAiScript(text.trim());
