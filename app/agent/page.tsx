@@ -37,7 +37,8 @@ const COLUMN_MAPPING: Record<string, string[]> = {
   city: ['ville', 'city', 'commune', 'localité', 'localite'],
   zip_code: ['cp', 'code postal', 'zip', 'zipcode' ],
   address: ['adresse', 'address', 'rue', 'adresse complète'],
-  birth_date: ['date de naissance', 'naissance', 'dob', 'birthdate', 'né le']
+  birth_date: ['date de naissance', 'naissance', 'dob', 'birthdate', 'né le'],
+  product: ['produit', 'product', 'offre', 'service']
 };
 
 // Convertit les dates Supabase vers le format attendu par <input type="date">
@@ -102,7 +103,6 @@ export default function AgentPage() {
   const [presenceStatus, setPresenceStatus] = useState("disponible");
 
   // --- IA (GEMINI) ---
-  const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [aiScript, setAiScript] = useState<string>('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string>('');
@@ -110,6 +110,7 @@ export default function AgentPage() {
   const [formData, setFormData] = useState({
     first_name: '', last_name: '', phone: '', email: '',
     birth_date: '', address: '', zip_code: '', city: '',
+    product: '',
     notes: '', status: 'nouveau'
   });
 
@@ -170,6 +171,7 @@ export default function AgentPage() {
       address: cleanLead.address || '',
       zip_code: cleanLead.zip_code || '', 
       city: cleanLead.city || '',
+      product: cleanLead.product || '',
       notes: lead.last_note || '', 
       status: lead.status || 'nouveau'
     });
@@ -322,8 +324,8 @@ export default function AgentPage() {
     const product = (produit || '').trim();
     const commercialNotes = (notes || '').trim();
 
-    if (!prenom || !product) {
-      setAiError("Renseignez au minimum le prénom du client et le produit/service.");
+    if (!product) {
+      setAiError("Veuillez sélectionner un produit pour ce lead.");
       return;
     }
 
@@ -333,7 +335,7 @@ export default function AgentPage() {
 
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
       const prompt = `
 Tu es un coach commercial senior de Casablanca Elite Services.
@@ -506,7 +508,11 @@ Instructions :
                       type="button"
                       onClick={() => {
                         const cleanLead = normalizeLeadData(currentLead);
-                        generateAiScript(cleanLead.first_name, selectedProduct, formData.notes);
+                        if (!String(cleanLead.product || '').trim()) {
+                          setAiError("Veuillez sélectionner un produit pour ce lead.");
+                          return;
+                        }
+                        generateAiScript(cleanLead.first_name, cleanLead.product, formData.notes);
                       }}
                       disabled={aiLoading}
                       className={`shrink-0 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg
@@ -531,15 +537,15 @@ Instructions :
                       <div className="space-y-1">
                         <label className={`text-[9px] font-black uppercase ml-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Produit / service</label>
                         <input
-                          value={selectedProduct}
-                          onChange={(e) => setSelectedProduct(e.target.value)}
-                          placeholder="Ex: Abonnement premium, Conciergerie, Service VIP..."
-                          className={`w-full border p-4 rounded-2xl text-sm outline-none focus:border-cyan-500 transition-all ${darkMode ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'}`}
+                          value={normalizeLeadData(currentLead).product || ''}
+                          readOnly
+                          placeholder="(vide) — à renseigner dans la fiche du lead"
+                          className={`w-full border p-4 rounded-2xl text-sm outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}
                         />
                       </div>
 
                       <p className={`${darkMode ? 'text-slate-500' : 'text-slate-400'} text-[10px] font-bold leading-relaxed`}>
-                        Astuce : indiquez le produit exact + un objectif client (ex: “rendez-vous”, “devis”, “inscription”).
+                        Astuce : renseignez le champ <span className="text-cyan-500">product</span> sur le lead (Supabase) pour une génération plus précise.
                       </p>
                     </div>
 
