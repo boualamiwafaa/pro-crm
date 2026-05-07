@@ -346,7 +346,7 @@ export default function AgentPage() {
 
     try {
       const genAI = new GoogleGenerativeAI(apiKey as string);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
       const prompt = `
 Tu es un coach commercial senior de Casablanca Elite Services.
