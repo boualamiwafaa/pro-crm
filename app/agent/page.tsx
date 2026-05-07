@@ -353,6 +353,8 @@ export default function AgentPage() {
          model: 'gemini-1.5-flash',
          });
 
+         // 3. Vérifie que l'URL n'est pas forcée en v1beta ailleurs
+
       const prompt = `
 Tu es un coach commercial senior de Casablanca Elite Services.
 Objectif : aider un agent à convaincre le client avec un ton professionnel, chaleureux et premium.
