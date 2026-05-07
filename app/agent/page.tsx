@@ -352,6 +352,7 @@ export default function AgentPage() {
       const model = genAI.getGenerativeModel({
          model: 'gemini-1.5-flash',
          });
+        }, { apiVersion: 'v1' }); // <--- AJOUTE ÇA ICI
 
          // 3. Vérifie que l'URL n'est pas forcée en v1beta ailleurs
 
