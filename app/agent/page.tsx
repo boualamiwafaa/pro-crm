@@ -1,4 +1,6 @@
 "use client";
+// © 2026 Wafaa Boualami - Casablanca Elite Services. Tous droits réservés.
+// Ce logiciel et son algorithme d'intégration IA sont protégés par le droit d'auteur.
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabase } from '@/lib/supabase';
@@ -253,6 +255,10 @@ export default function AgentPage() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [fetchData]);
+
+  useEffect(() => {
+    console.log('%c CRM Propulsé par Casablanca Elite Services - © 2026 Wafaa Boualami', 'color: #gold; font-weight: bold;');
+  }, []);
 
   // --- ACTIONS ---
   const handleCall = async (number?: string) => {

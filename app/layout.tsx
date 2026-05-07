@@ -12,7 +12,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr" suppressHydrationWarning>
       <body className="bg-[#020617] text-white">
         <AuthProvider>
-          {children}
+          <div className="flex min-h-screen flex-col">
+            <div className="flex-1 min-h-0">{children}</div>
+            <footer className="shrink-0 border-t border-white/5 py-4">
+              <p className="text-center text-xs text-slate-400">
+                © 2026 Wafaa Boualami - Casablanca Elite Services. Tous droits réservés.
+              </p>
+            </footer>
+          </div>
         </AuthProvider>
       </body>
     </html>
