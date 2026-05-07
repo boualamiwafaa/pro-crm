@@ -238,7 +238,7 @@ export default function AgentPage() {
         
         setAgentId(session.user.id);
         fetchData(session.user.id);
-        initVOIP();
+        // initVOIP(); // Désactivé temporairement pour éviter les 500 sur /api/voip/token
       } else {
         router.push('/login');
       }
@@ -369,9 +369,10 @@ Instructions :
 - Reste concis, impactant, sans blabla.
 `.trim();
 
-      console.log('Connexion établie avec Gemini 2.5 Flash...');
+      console.log('Connexion établie avec Gemini 1.5 Flash...');
       const result = await model.generateContent(prompt);
       const text = result.response.text();
+      console.log('[Gemini] Réponse IA:', text);
       setAiScript(text.trim());
     } catch (e: any) {
       console.error(e);
