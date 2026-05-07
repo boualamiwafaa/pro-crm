@@ -345,8 +345,13 @@ export default function AgentPage() {
     setAiScript('');
 
     try {
-      const genAI = new GoogleGenerativeAI(apiKey as string);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      // Assure-toi que cette ligne utilise bien ta variable d'environnement
+      const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+
+      // ICI : On enlève toute mention de "v1beta" si elle est forcée quelque part
+      const model = genAI.getGenerativeModel({
+         model: 'gemini-1.5-flash',
+         });
 
       const prompt = `
 Tu es un coach commercial senior de Casablanca Elite Services.
