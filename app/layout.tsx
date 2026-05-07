@@ -9,12 +9,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr" suppressHydrationWarning>
-      <body className="bg-[#020617] text-white">
+    <html lang="fr" suppressHydrationWarning className="h-full">
+      <body className="h-full bg-[#020617] text-white">
         <AuthProvider>
-          <div className="flex flex-col min-h-screen">
-            {children}
-            <footer className="py-4 mt-auto">
+          <div className="flex h-full min-h-screen flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+            <footer className="mt-auto shrink-0 py-4">
               <p className="text-center text-xs text-gray-500 italic">
                 © 2026 Wafaa Boualami - Casablanca Elite Services. Tous droits réservés.
               </p>
